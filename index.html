@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#1a0a18" />
+  <title>Принц Чесночек: Сад Искушений — 18+</title>
+  <link rel="preload" as="image" href="assets/bg-garden.jpg" />
+  <link rel="preload" as="image" href="assets/prince-garlic.png" />
+  <link rel="preload" as="image" href="assets/melon-boss.png" />
+  <link rel="preload" as="image" href="assets/chili-enemy.png" />
+  <link rel="preload" as="image" href="assets/onion-enemy.png" />
+  <link rel="preload" as="image" href="assets/gem-passion.png" />
+  <link rel="preload" as="image" href="assets/gem-dew.png" />
+  <link rel="preload" as="image" href="assets/gem-sap.png" />
+  <link rel="preload" as="image" href="assets/gem-amber.png" />
+  <link rel="preload" as="image" href="assets/gem-temptation.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <section id="screen-age" class="screen active" aria-label="Возрастное ограничение">
+      <div class="splash-figure" id="age-portrait"></div>
+      <h1 class="display-title">Игра 18+<em>Тебе есть 18?</em></h1>
+      <p class="flavor" id="age-question">
+        Здесь овощи флиртуют без стеснения, шутки пошлые, а взгляды томные.
+        Наготы и откровенных сцен не будет, но вход только для взрослых.
+      </p>
+      <div class="age-actions" id="age-actions">
+        <button type="button" class="btn" id="btn-age-yes">Да</button>
+        <button type="button" class="btn secondary" id="btn-age-no">Нет</button>
+      </div>
+      <div class="age-exit" id="age-exit" hidden>
+        <p class="flavor" id="age-exit-text">
+          Тогда это свидание не для тебя. Возвращайся, когда исполнится 18.
+          Принц Чесночек подождёт — и даже не будет дуться. Ну, почти.
+        </p>
+        <button type="button" class="btn secondary" id="btn-age-back">Вернуться</button>
+      </div>
+    </section>
+
+    <section id="screen-title" class="screen" aria-label="Титульный экран">
+      <div class="badge-18">18+</div>
+      <div class="splash-figure flirt-idle" id="title-portrait"></div>
+      <h1 class="display-title">Принц Чесночек<em>Сад Искушений</em></h1>
+      <p class="flavor">
+        В зачарованном огороде зреют совсем нескромные страсти.
+        Самый харизматичный зубчик королевства идёт туда, где овощи умеют подкатывать,
+        а спелость считается оружием массового соблазна.
+      </p>
+      <button type="button" class="btn" id="btn-start">Начать забег</button>
+      <p class="hint-muted">Смахните камни, копите ману, творите чары. И подмигивайте.</p>
+    </section>
+
+    <section id="screen-battle" class="screen" aria-label="Бой">
+      <div class="enemy-stage" id="enemy-stage">
+        <div class="enemy-figure" id="enemy-figure"></div>
+        <div class="enemy-fx" id="enemy-fx" aria-hidden="true"></div>
+        <div class="enemy-hud">
+          <div class="hud-top">
+            <div class="where" id="battle-where">Грядка</div>
+            <div class="floor" id="battle-floor">Бой 1 из 4</div>
+          </div>
+          <div class="who">
+            <span id="enemy-name">Враг</span>
+            <span class="intent" id="enemy-intent">Удар</span>
+          </div>
+          <div class="bar" id="enemy-bar">
+            <div class="fill" id="enemy-hp-fill"></div>
+            <div class="label" id="enemy-hp-label">0/0</div>
+          </div>
+          <div class="taunt" id="enemy-taunt">…</div>
+        </div>
+      </div>
+
+      <div class="hero-dock" id="hero-card">
+        <div class="portrait" id="hero-portrait"></div>
+        <div class="hero-info">
+          <div class="who">
+            <span id="hero-name">Принц Чесночек</span>
+            <span class="intent" id="hero-status"></span>
+          </div>
+          <div class="bar" id="hero-bar">
+            <div class="fill shield" id="hero-shield-fill"></div>
+            <div class="fill" id="hero-hp-fill"></div>
+            <div class="label" id="hero-hp-label">0/0</div>
+          </div>
+          <div class="mana-row" id="mana-row"></div>
+        </div>
+      </div>
+
+      <div class="tutorial" id="tutorial">
+        <p>Смахните соседние камни, чтобы собрать три в ряд. Камни дают ману и маленькие эффекты, заклинания — главный козырь. Когда закончите, нажмите «Завершить ход».</p>
+        <button type="button" id="btn-tutorial">Понял</button>
+      </div>
+
+      <div class="spells" id="spells"></div>
+
+      <div class="board-wrap">
+        <div class="board-frame">
+          <div class="board-sizer" id="board-sizer">
+            <div id="board" aria-label="Игровое поле 8 на 8">
+              <div class="floaters" id="floaters"></div>
+            </div>
+          </div>
+        </div>
+        <div class="toast" id="toast"></div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btn-end">Завершить ход</button>
+      </div>
+    </section>
+
+    <section id="screen-reward" class="screen" aria-label="Награда">
+      <h2>Победа со вкусом</h2>
+      <p class="sub" id="reward-sub">Выберите одну награду — одну, как один поцелуй.</p>
+      <div class="rewards" id="rewards"></div>
+    </section>
+
+    <section id="screen-end" class="screen" aria-label="Итог забега">
+      <div class="splash-figure" id="end-portrait"></div>
+      <h1 class="display-title" id="end-title">Победа</h1>
+      <p class="flavor" id="end-flavor"></p>
+      <button type="button" class="btn" id="btn-again">Новый забег</button>
+    </section>
+
+    <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
