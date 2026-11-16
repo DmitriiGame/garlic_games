@@ -1,9 +1,10 @@
-// Принц Чесночек: Сад Искушений (18+)
+// Огурчик Чак: Сад Искушений (18+)
 (function () {
   "use strict";
 
   const ROWS = 8, COLS = 8, MANA_MAX = 10;
-  const AGE_KEY = "chesnochek-18";
+  const AGE_KEY = "cucumber-chuck-18";
+  const MUTE_KEY = "chuck-mute";
   const TYPE_IDS = ["passion", "dew", "sap", "amber", "temptation"];
   const TYPE = {
     passion:    { id: "passion",    name: "Страсть",     short: "СТ" },
@@ -18,6 +19,141 @@
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const uid = (() => { let n = 1; return () => ++n; })();
+
+  /* ---------- web audio (unlocked on the first gesture) ---------- */
+  const SFX = (() => {
+    let ctx = null;
+    let master = null;
+    let noiseBuf = null;
+    let muted = false;
+    try { muted = localStorage.getItem(MUTE_KEY) === "1"; } catch (_) {}
+
+    function ac() {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      if (!ctx) {
+        ctx = new AC();
+        master = ctx.createGain();
+        master.gain.value = 0.32;
+        master.connect(ctx.destination);
+        const n = Math.floor(ctx.sampleRate * 0.2);
+        noiseBuf = ctx.createBuffer(1, n, ctx.sampleRate);
+        const data = noiseBuf.getChannelData(0);
+        for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+      }
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+      return ctx;
+    }
+
+    function unlock() {
+      try { ac(); } catch (_) {}
+    }
+
+    function setMuted(v) {
+      muted = !!v;
+      try { localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); } catch (_) {}
+      const btn = $("btn-mute");
+      if (btn) {
+        btn.textContent = muted ? "🔇" : "🔊";
+        btn.setAttribute("aria-pressed", muted ? "true" : "false");
+        btn.setAttribute("aria-label", muted ? "Звук выключен" : "Звук включён");
+      }
+    }
+
+    function toggle() {
+      unlock();
+      setMuted(!muted);
+    }
+
+    function env(t, dur, peak) {
+      const g = ctx.createGain();
+      g.connect(master);
+      const p = Math.max(0.001, peak || 0.12);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(p, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.03, dur));
+      return g;
+    }
+
+    function tone(freq, dur, type, peak, delay) {
+      const c = ac();
+      if (!c || !master) return;
+      const t0 = c.currentTime + (delay || 0);
+      const o = c.createOscillator();
+      o.type = type || "sine";
+      o.frequency.setValueAtTime(freq, t0);
+      o.connect(env(t0, dur, peak));
+      o.start(t0);
+      o.stop(t0 + dur + 0.03);
+    }
+
+    function noise(dur, peak, freq) {
+      const c = ac();
+      if (!c || !master || !noiseBuf) return;
+      const t0 = c.currentTime;
+      const src = c.createBufferSource();
+      src.buffer = noiseBuf;
+      const filter = c.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = freq || 700;
+      filter.Q.value = 0.6;
+      src.connect(filter);
+      filter.connect(env(t0, dur, peak));
+      src.start(t0);
+      src.stop(t0 + dur + 0.02);
+    }
+
+    function play(name, opt) {
+      try {
+        if (muted) return;
+        const o = opt || {};
+        if (name === "swap") {
+          tone(520, 0.06, "triangle", 0.1);
+          tone(700, 0.05, "sine", 0.05, 0.03);
+        } else if (name === "bad") {
+          tone(130, 0.12, "square", 0.05);
+          tone(86, 0.14, "sawtooth", 0.03, 0.04);
+        } else if (name === "match") {
+          const step = Math.min(o.combo || 1, 8);
+          const f = 360 * Math.pow(1.16, step - 1);
+          tone(f, 0.08, "triangle", 0.12);
+          tone(f * 1.5, 0.09, "sine", 0.06, 0.035);
+        } else if (name === "spell") {
+          const map = {
+            passion: [520, 680, "sawtooth"],
+            dew: [660, 880, "sine"],
+            sap: [392, 494, "triangle"],
+            amber: [440, 587, "square"],
+            temptation: [311, 466, "triangle"]
+          };
+          const m = map[o.type] || map.passion;
+          tone(m[0], 0.11, m[2], 0.09);
+          tone(m[1], 0.14, "sine", 0.06, 0.05);
+        } else if (name === "hit") {
+          noise(0.07, 0.16, 420);
+          tone(170, 0.09, "square", 0.06);
+        } else if (name === "attack") {
+          noise(0.09, 0.14, 200);
+          tone(100, 0.14, "sawtooth", 0.05);
+        } else if (name === "shield") {
+          tone(880, 0.07, "sine", 0.08);
+          tone(1320, 0.09, "triangle", 0.05, 0.035);
+        } else if (name === "heal") {
+          tone(523, 0.09, "sine", 0.08);
+          tone(659, 0.1, "sine", 0.06, 0.06);
+          tone(784, 0.12, "triangle", 0.05, 0.11);
+        } else if (name === "win") {
+          [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.15, "triangle", 0.08, i * 0.08));
+        } else if (name === "lose") {
+          [392, 330, 262, 196].forEach((f, i) => tone(f, 0.16, "sine", 0.07, i * 0.09));
+        } else if (name === "click") {
+          tone(760, 0.035, "square", 0.04);
+        }
+      } catch (_) {}
+    }
+
+    return { unlock, toggle, setMuted, play, isMuted: () => muted };
+  })();
 
   /* ---------- portraits ---------- */
   function svgWrap(id, inner, bg0, bg1) {
@@ -106,9 +242,16 @@
     amber: "assets/gem-amber.png",
     temptation: "assets/gem-temptation.png"
   };
+  const GEM_COLOR = {
+    passion: "#ff4d6d",
+    dew: "#7ecbff",
+    sap: "#5ee58a",
+    amber: "#ffc14d",
+    temptation: "#c77dff"
+  };
 
   const PHOTO = {
-    hero:  { src: "assets/prince-garlic.png", alt: "Принц Чесночек" },
+    hero:  { src: "assets/cucumber-chuck.png", alt: "Огурчик Чак" },
     chili: { src: "assets/chili-enemy.png", alt: "Перчик-жегучик" },
     onion: { src: "assets/onion-enemy.png", alt: "Луковая роковая дама" },
     melon: { src: "assets/melon-boss.png", alt: "Дынька-Искусительница" }
@@ -128,19 +271,19 @@
 
   /* ---------- flirt copy (bawdy innuendo, no graphic acts) ---------- */
   const HERO_CAST_LINES = [
-    "Дыши глубже — сейчас будет остро.",
-    "Не красней. Я только разогрел аромат.",
-    "Ещё один зубчик — и ты уже на моей стороне постели… то есть грядки.",
-    "Поцелуй с чесночком. Бесплатно, но с последствиями.",
-    "Я не снимаю корону даже в самые пикантные моменты.",
-    "Мой аромат работает ниже пояса настроения. Замечаешь?",
+    "Дыши глубже — сейчас будет хрустко.",
+    "Не красней. Я только рассол разогрел.",
+    "Ещё один пупырышек — и ты уже на моей стороне постели… то есть грядки.",
+    "Поцелуй с огурчиком. Бесплатно, но с послевкусием рассола.",
+    "Я не снимаю жилетку даже в самые пикантные моменты.",
+    "Мой хруст работает ниже пояса настроения. Замечаешь?",
     "Подмигнул. Дальше ты сама додумывай."
   ];
   const HERO_WIN_LINES = [
-    "Ну что, признайся: от моего аромата у тебя подкосились ножки.",
-    "Победа вкусная. Почти как ты, когда злишься.",
+    "Ну что, признайся: от моего хруста у тебя подкосились ножки.",
+    "Победа хрустящая. Почти как ты, когда злишься.",
     "Я бы предложил реванш в более мягкой постели… то есть, клумбе.",
-    "Шелуха на месте, репутация — уже нет. Принимаю комплименты."
+    "Пупырышки на месте, репутация — уже нет. Принимаю комплименты."
   ];
   const HERO_HIT_LINES = [
     "Ой. Кто-то любит пожестче.",
@@ -150,33 +293,33 @@
 
   /* ---------- content ---------- */
   const SPELLS = {
-    aromaStrike: {
-      id: "aromaStrike",
-      name: "Ароматный выпад",
-      desc: "14 урона. Запах, от которого слабеют колени — и не только.",
+    crunchStrike: {
+      id: "crunchStrike",
+      name: "Хрустящий выпад",
+      desc: "11 урона. Хруст, от которого слабеют колени — и не только.",
       cost: { passion: 3 },
-      cast() { damageEnemy(14 + relicBonus("firstClove"), pick(HERO_CAST_LINES)); }
+      cast() { damageEnemy(11 + relicBonus("firstBump"), pick(HERO_CAST_LINES)); }
     },
-    huskVeil: {
-      id: "huskVeil",
-      name: "Плащ из шелухи",
-      desc: "Щит 10. Шелуха тоже умеет быть бархатной наощупь.",
+    brineCloak: {
+      id: "brineCloak",
+      name: "Рассольный плащ",
+      desc: "Щит 8. Рассол тоже умеет быть бархатным наощупь.",
       cost: { dew: 3 },
-      cast() { addShield(10); toast("Плащ сел как вторая кожа. Очень к лицу — и к телу."); }
+      cast() { addShield(8); toast("Плащ сел как вторая кожа. Очень к лицу — и к телу."); }
     },
-    healingClove: {
-      id: "healingClove",
-      name: "Целебный зубчик",
-      desc: "Лечение 12. Один зубчик — и снова в форме для шалостей.",
+    healingBump: {
+      id: "healingBump",
+      name: "Целебный пупырышек",
+      desc: "Лечение 9. Один пупырышек — и снова в форме для шалостей.",
       cost: { sap: 3 },
-      cast() { healHero(12); toast("Сок побежал куда надо. Принц снова свеж."); }
+      cast() { healHero(9); toast("Рассол побежал куда надо. Чак снова свеж и хрустит."); }
     },
-    garlicKiss: {
-      id: "garlicKiss",
-      name: "Чесночный поцелуй",
-      desc: "8 лечения и 10 урона. Близко, мокро от росы, с послевкусием.",
+    brineKiss: {
+      id: "brineKiss",
+      name: "Рассольный поцелуй",
+      desc: "6 лечения и 8 урона. Близко, солоно, с хрустящим послевкусием.",
       cost: { amber: 2, sap: 2 },
-      cast() { healHero(8); damageEnemy(10 + relicBonus("firstClove"), "Поцелуй с чесночным послевкусием. Не благодари — лучше покрасней.", "kiss"); }
+      cast() { healHero(6); damageEnemy(8 + relicBonus("firstBump"), "Поцелуй с рассольным послевкусием. Не благодари — лучше покрасней.", "kiss"); }
     },
     spicyWhisper: {
       id: "spicyWhisper",
@@ -188,40 +331,40 @@
     petalStorm: {
       id: "petalStorm",
       name: "Буря лепестков",
-      desc: "24 урона. Лепестки липнут, как чужие руки на танцах.",
+      desc: "18 урона. Лепестки липнут, как чужие руки на танцах.",
       cost: { passion: 5 },
-      cast() { damageEnemy(24 + relicBonus("firstClove"), "Лепестки хлещут сладко. И чуть ниже приличия."); }
+      cast() { damageEnemy(18 + relicBonus("firstBump"), "Лепестки хлещут сладко. И чуть ниже приличия."); }
     },
-    royalAroma: {
-      id: "royalAroma",
-      name: "Королевский аромат",
-      desc: "12 урона и щит 6. Пахну так, будто уже остался на ночь.",
+    royalCrunch: {
+      id: "royalCrunch",
+      name: "Королевский хруст",
+      desc: "9 урона и щит 5. Хрустишь так, будто уже остался на ночь.",
       cost: { amber: 3, passion: 2 },
-      cast() { damageEnemy(12 + relicBonus("firstClove")); addShield(6); toast("Воздух стал густым, как комплимент шёпотом на ухо."); }
+      cast() { damageEnemy(9 + relicBonus("firstBump")); addShield(5); toast("Воздух стал густым, как комплимент шёпотом на ухо."); }
     },
     sapFeast: {
       id: "sapFeast",
-      name: "Пир сока",
-      desc: "Лечение 22. Сладко, сытно, почти неприлично вкусно.",
+      name: "Пир рассола",
+      desc: "Лечение 17. Солёно, сытно, почти неприлично вкусно.",
       cost: { sap: 5 },
-      cast() { healHero(22); toast("Принц отпивает — и цветом играет, как после хорошего свидания."); }
+      cast() { healHero(17); toast("Чак отпивает — и цветом играет, как после хорошего свидания."); }
     },
     coldShoulder: {
       id: "coldShoulder",
       name: "Холодное плечо",
-      desc: "Щит 12 и −3 к следующему удару. Сначала дай, потом отодвинь.",
+      desc: "Щит 9 и −3 к следующему удару. Сначала дай, потом отодвинь.",
       cost: { dew: 4, temptation: 1 },
-      cast(s) { addShield(12); s.enemy.weaken = (s.enemy.weaken || 0) + 3; toast("Она тянется — он чуть отстраняется. Играем, милая."); }
+      cast(s) { addShield(9); s.enemy.weaken = (s.enemy.weaken || 0) + 3; toast("Она тянется — он чуть отстраняется. Играем, милая."); }
     }
   };
 
   const RELICS = {
-    firstClove: { id: "firstClove", name: "Медальон Первого Зубчика", desc: "Все заклинания наносят на 3 урона больше. Острее, чем комплимент." },
-    eveningPerfume: { id: "eveningPerfume", name: "Духи «Вечерний аромат»", desc: "В начале каждого боя — по 2 маны каждого цвета. Пахнешь, как до полуночи." },
+    firstBump: { id: "firstBump", name: "Медальон Первого Пупырышка", desc: "Все заклинания наносят на 2 урона больше. Острее, чем комплимент." },
+    eveningPerfume: { id: "eveningPerfume", name: "Духи «Полуночный рассол»", desc: "В начале каждого боя — по 2 маны каждого цвета. Пахнешь, как банка до полуночи." },
     silkRibbon: { id: "silkRibbon", name: "Шёлковая лента Лозы", desc: "+12 к запасу здоровья. Сразу ощущается на шее — и не только." },
     pepperHeart: { id: "pepperHeart", name: "Сердце перчика", desc: "Камни Страсти бьют на 1 сильнее за каждый камень. Горячее обычного." },
     onionRing: { id: "onionRing", name: "Перстенёк из шелухи", desc: "Сборка из 4+ камней даёт ещё 2 маны того же цвета." },
-    ripeCharm: { id: "ripeCharm", name: "Спелый талисман", desc: "В начале вашего хода восстанавливает 3 здоровья. Спелость идёт на пользу." },
+    ripeCharm: { id: "ripeCharm", name: "Спелый талисман", desc: "В начале вашего хода восстанавливает 2 здоровья. Спелость идёт на пользу." },
     countCape: { id: "countCape", name: "Кружевная накидка дамы", desc: "Первый удар врага в каждом бою слабее вдвое. Слёзы — её сцена, кружева — твоя защита." }
   };
 
@@ -230,14 +373,14 @@
       id: "chili",
       name: "Перчик-жегучик",
       where: "Жгучая аллея",
-      maxHp: 36,
-      atk: 7,
+      maxHp: 41,
+      atk: 8,
       portrait: "chili",
       taunts: [
-        "Осторожно, принц: я жгуче целуюсь. Проверишь?",
+        "Осторожно, Чак: я жгуче целуюсь. Проверишь?",
         "Этот огонёк на макушке — не единственное, что у меня горячее.",
         "Не красней так, это моя работа. Хотя тебе идёт.",
-        "Мускулы, ус и характер. Корону поправь и подойди ближе.",
+        "Мускулы, ус и характер. Жилетку поправь и подойди ближе.",
         "Я подмигнул. Дальше будет остро — и тебе понравится."
       ],
       intent() { return { label: `Удар ${this.atk}`, type: "hit" }; },
@@ -247,13 +390,13 @@
       id: "onion",
       name: "Луковая роковая дама",
       where: "Кружевной будуар",
-      maxHp: 52,
-      atk: 9,
+      maxHp: 59,
+      atk: 10,
       portrait: "onion",
       taunts: [
-        "Не смотри так… от твоего аромата у меня уже слеза, и вовсе не от горя.",
+        "Не смотри так… от твоего хруста у меня уже слеза, и вовсе не от горя.",
         "Платочек мокрый, кружева чёрные, намерения ещё чернее.",
-        "Поплакать на твоём плече? Только если снимешь корону и пообещаешь не уходить.",
+        "Поплакать на твоём плече? Только если снимешь жилетку и пообещаешь не уходить.",
         "Я роковая дама: сначала слезинка, потом ты уже не вспомнишь, зачем пришёл.",
         "Шелуха у меня многослойная. Снимать будешь медленно… если победишь."
       ],
@@ -270,13 +413,13 @@
       id: "vine",
       name: "Изабелла, Лоза-Дриада",
       where: "Беседка сладкой лозы",
-      maxHp: 64,
-      atk: 10,
+      maxHp: 72,
+      atk: 11,
       portrait: "vine",
       taunts: [
         "Подойди ближе, я только обовьюсь… совсем чуть-чуть. Потом крепче.",
         "Мои усики лезут не в те места. Приятные, впрочем.",
-        "В моей тени тепло и тесно. Оставайся, снимем корону аккуратно.",
+        "В моей тени тепло и тесно. Оставайся, снимем жилетку аккуратно.",
         "Не вырывайся: от меня уходят только с ягодкой на губах и путаницей в голове."
       ],
       intent(s) {
@@ -299,17 +442,17 @@
       id: "melon",
       name: "Дынька-Искусительница",
       where: "Чертог спелости",
-      maxHp: 95,
-      atk: 13,
+      maxHp: 109,
+      atk: 15,
       portrait: "melon",
       isBoss: true,
       taunts: [
-        "Ну наконец-то, мой острый. Я так долго тебя зрела — уже сок на уме.",
+        "Ну наконец-то, мой хрустящий. Я так долго тебя зрела — уже сок на уме.",
         "Спелая, сладкая, в кружевах. Угадай, с чего начнём, если проиграешь.",
         "Попробуй на запах. Потом, если повезёт, и на вкус. Я не кусаюсь. Обычно.",
-        "Корону сними, принц. Она будет мешать, когда я к тебе наклонюсь.",
+        "Жилетку сними, Чак. Она будет мешать, когда я к тебе наклонюсь.",
         "После меня тебе пресный суп даже на ум не придёт. Я порция на всю ночь.",
-        "Дунь на меня ещё раз. Я люблю, когда от тебя несёт уверенностью. И чесноком.",
+        "Хрустни ещё раз. Я люблю, когда от тебя несёт уверенностью. И рассолом.",
         "В этих кружевах жарко. Виноват будешь ты, если они вдруг станут тесны."
       ],
       intent(s) {
@@ -332,7 +475,7 @@
     }
   ];
 
-  const REWARD_SPELLS = ["garlicKiss", "spicyWhisper", "petalStorm", "royalAroma", "sapFeast", "coldShoulder"];
+  const REWARD_SPELLS = ["brineKiss", "spicyWhisper", "petalStorm", "royalCrunch", "sapFeast", "coldShoulder"];
   const REWARD_RELICS = Object.keys(RELICS);
 
   /* ---------- state ---------- */
@@ -347,12 +490,12 @@
     return {
       floor: 0,
       hero: {
-        name: "Принц Чесночек",
+        name: "Огурчик Чак",
         hp: 90,
         maxHp: 90,
         shield: 0,
         mana: { passion: 0, dew: 0, sap: 0, amber: 0, temptation: 0 },
-        spells: ["aromaStrike", "huskVeil", "healingClove"],
+        spells: ["crunchStrike", "brineCloak", "healingBump"],
         relics: [],
         firstHitPending: false
       },
@@ -364,7 +507,7 @@
   }
 
   function hasRelic(id) { return S.hero.relics.includes(id); }
-  function relicBonus(id) { return hasRelic(id) ? 3 : 0; }
+  function relicBonus(id) { return hasRelic(id) ? 2 : 0; }
 
   /* ---------- board ---------- */
   function randomType() { return TYPE_IDS[Math.floor(Math.random() * TYPE_IDS.length)]; }
@@ -510,11 +653,13 @@
     if (findMatches(grid).size === 0) {
       await wait(140);
       await swapGems(a, b, true);
+      SFX.play("bad");
       toast("Камни не хотят так стоять. Попробуй иначе, смелее.");
       busy = false;
       return;
     }
     swappedThisTurn = true;
+    SFX.play("swap");
     await resolveMatches();
     if (S.over) { busy = false; return; }
     if (!hasMove(gridTypes())) await shuffleBoard("Камни перемешались, будто от смущения. Мило.");
@@ -552,6 +697,7 @@
     if (combo >= 2 && !S.over) {
       floatBoard(combo >= 3 ? "Ох, какой размах!" : "Комбо ×" + combo, "combo");
       burstFX($("board"), 6);
+      if (combo >= 4) shake(false);
     }
   }
 
@@ -566,6 +712,8 @@
       (groups[g.type] ||= []).push(g);
     }
     for (const g of toPop) g.el.classList.add("popping");
+    for (const [type, list] of Object.entries(groups)) burstParticles(list, type);
+    SFX.play("match", { combo });
     awardGroups(groups, combo);
     renderChrome();
     await wait(200);
@@ -584,17 +732,19 @@
       addMana(type, mana);
       const mid = list[Math.floor(list.length / 2)];
       if (type === "passion") {
-        const dmg = n * (2 + (hasRelic("pepperHeart") ? 1 : 0));
+        const dmg = Math.max(1, Math.round(n * 1.55) + (hasRelic("pepperHeart") ? n : 0));
         damageEnemy(dmg);
         floatAtGem(mid, "−" + dmg, "dmg");
       } else if (type === "dew") {
-        addShield(n);
-        floatAtGem(mid, "щит +" + n, "mana");
-        playHealOnHero("щит +" + n);
+        const shield = Math.max(1, Math.round(n * 0.8));
+        addShield(shield);
+        floatAtGem(mid, "щит +" + shield, "mana");
+        playHealOnHero("щит +" + shield);
       } else if (type === "sap") {
-        healHero(n);
-        floatAtGem(mid, "+" + n, "heal");
-        playHealOnHero("+" + n);
+        const heal = Math.max(1, Math.round(n * 0.8));
+        healHero(heal);
+        floatAtGem(mid, "+" + heal, "heal");
+        playHealOnHero("+" + heal);
       } else if (type === "amber") {
         const others = TYPE_IDS.filter((t) => t !== "amber");
         addMana(pick(others), n >= 4 ? 2 : 1);
@@ -688,6 +838,7 @@
     setPortrait($("enemy-figure"), def.portrait, "figure");
     setPortrait($("hero-portrait"), "hero", "bust");
     $("enemy-stage").classList.toggle("boss", !!def.isBoss);
+    $("hero-name").textContent = S.hero.name;
     $("enemy-name").textContent = def.name;
     $("battle-where").textContent = def.where;
     $("battle-floor").textContent = (def.isBoss ? "Босс · " : "") + "Бой " + (S.floor + 1) + " из 4";
@@ -703,7 +854,7 @@
 
   function maybeRipeCharm() {
     if (hasRelic("ripeCharm") && S.hero.hp > 0 && S.hero.hp < S.hero.maxHp) {
-      healHero(3);
+      healHero(2);
     }
   }
 
@@ -711,12 +862,22 @@
     S.hero.mana[type] = clamp((S.hero.mana[type] || 0) + n, 0, MANA_MAX);
   }
 
-  function addShield(n) { S.hero.shield = (S.hero.shield || 0) + n; renderChrome(); }
+  function addShield(n) {
+    if (!n) return;
+    S.hero.shield = (S.hero.shield || 0) + n;
+    SFX.play("shield");
+    renderChrome();
+  }
 
   function healHero(n) {
     const before = S.hero.hp;
     S.hero.hp = clamp(S.hero.hp + n, 0, S.hero.maxHp);
-    if (S.hero.hp > before) flash($("hero-card"));
+    const gained = S.hero.hp - before;
+    if (gained > 0) {
+      flash($("hero-card"));
+      floatOn($("hero-card"), "+" + gained, "heal");
+      SFX.play("heal");
+    }
     renderChrome();
   }
 
@@ -726,6 +887,8 @@
     S.enemy.hp = clamp(S.enemy.hp - dmg, 0, S.enemy.maxHp);
     flash($("enemy-stage"));
     playHitOnEnemy(kind || "passion", dmg ? ("−" + dmg) : "");
+    if (dmg > 0) SFX.play("hit");
+    if (dmg >= 12) shake(dmg >= 18);
     if (line) $("enemy-taunt").textContent = line;
     renderChrome();
     if (S.enemy.hp <= 0) onEnemyDown();
@@ -739,12 +902,17 @@
     if (S.hero.firstHitPending) { dmg = Math.round(dmg / 2); S.hero.firstHitPending = false; }
     if (taunt) $("enemy-taunt").textContent = taunt;
     let rest = dmg;
+    let blocked = 0;
     if (S.hero.shield > 0) {
-      const used = Math.min(S.hero.shield, rest);
-      S.hero.shield -= used;
-      rest -= used;
+      blocked = Math.min(S.hero.shield, rest);
+      S.hero.shield -= blocked;
+      rest -= blocked;
     }
     S.hero.hp = clamp(S.hero.hp - rest, 0, S.hero.maxHp);
+    SFX.play("attack");
+    if (blocked > 0) SFX.play("shield");
+    if (rest > 0) floatOn($("hero-card"), "−" + rest, "");
+    if (raw >= 10) shake(raw >= 16);
     playEnemyAttack();
     flash($("hero-card"));
     wigglePortrait($("hero-portrait"), "hit");
@@ -809,6 +977,62 @@
       layer.appendChild(bit);
       window.setTimeout(() => bit.remove(), 820);
     }
+  }
+
+  function burstParticles(list, type) {
+    const board = $("board");
+    const layer = $("floaters");
+    if (!board || !layer || !list || !list.length) return;
+    const br = board.getBoundingClientRect();
+    const color = GEM_COLOR[type] || "#fff4d0";
+    let spawned = 0;
+    for (const g of list) {
+      if (!g.el || spawned >= 16) break;
+      const gr = g.el.getBoundingClientRect();
+      const cx = gr.left + gr.width / 2 - br.left;
+      const cy = gr.top + gr.height / 2 - br.top;
+      for (let i = 0; i < 4 && spawned < 16; i++, spawned++) {
+        const p = document.createElement("i");
+        p.className = "particle";
+        p.style.left = cx + "px";
+        p.style.top = cy + "px";
+        p.style.background = color;
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 12 + Math.random() * 20;
+        p.style.setProperty("--dx", (Math.cos(ang) * dist) + "px");
+        p.style.setProperty("--dy", (Math.sin(ang) * dist) + "px");
+        layer.appendChild(p);
+        window.setTimeout(() => p.remove(), 480);
+      }
+    }
+  }
+
+  function shake(strong) {
+    const app = $("app");
+    if (!app) return;
+    app.classList.remove("shake", "shake-big");
+    void app.offsetWidth;
+    app.classList.add(strong ? "shake-big" : "shake");
+    window.setTimeout(() => app.classList.remove("shake", "shake-big"), 340);
+  }
+
+  function spellFlash(color) {
+    const layer = $("fx-layer");
+    if (!layer) return;
+    const el = document.createElement("div");
+    el.className = "spell-veil";
+    el.style.background = "radial-gradient(circle at 50% 42%, " + color + "99, transparent 62%)";
+    layer.appendChild(el);
+    window.setTimeout(() => el.remove(), 320);
+  }
+
+  function floatOn(el, text, cls) {
+    if (!el) return;
+    const d = document.createElement("div");
+    d.className = "dmg-float" + (cls ? " " + cls : "");
+    d.textContent = text;
+    el.appendChild(d);
+    window.setTimeout(() => d.remove(), 820);
   }
 
 
@@ -904,6 +1128,9 @@
       return;
     }
     payCost(spell.cost);
+    const primary = Object.keys(spell.cost)[0];
+    SFX.play("spell", { type: primary });
+    spellFlash(GEM_COLOR[primary] || "#ffd76a");
     heroFlirt(pick(HERO_CAST_LINES));
     spell.cast(S);
     renderChrome();
@@ -935,7 +1162,7 @@
     S.over = true;
     burstFX($("enemy-figure"), 10);
     $("enemy-taunt").textContent = S.enemy.isBoss
-      ? "Какая острота… ещё встретимся, принц. В более удобной позе."
+      ? "Какая острота… ещё встретимся, Чак. В более удобной позе."
       : "Хорошо, ты умеешь ухаживать. Ступай дальше, не без сожаления…";
     window.setTimeout(() => {
       if (S.floor >= ENEMIES.length - 1) showEnd(true);
@@ -946,14 +1173,14 @@
   function onHeroDown() {
     if (S.over) return;
     S.over = true;
-    $("enemy-taunt").textContent = "Даже принцы иногда остаются без шелухи. Миленько, кстати.";
+    $("enemy-taunt").textContent = "Даже огурчики иногда теряют хруст. Миленько, кстати.";
     window.setTimeout(() => showEnd(false), 800);
   }
 
   /* ---------- rewards ---------- */
   function showRewards() {
     const miss = S.hero.maxHp - S.hero.hp;
-    const rec = Math.max(8, Math.round(miss * 0.4));
+    const rec = Math.max(6, Math.round(miss * 0.32));
     healHero(rec);
     $("reward-sub").textContent = "Здоровье подлечено на " + rec + ". Выберите одну награду — одну, как один поцелуй.";
     const options = rollRewards();
@@ -984,7 +1211,7 @@
     }
     const picked = pool.slice(0, 3);
     while (picked.length < 3) {
-      picked.push({ kind: "Утешение", typ: "heal", id: "heal", name: "Кубок нектара", desc: "Восстанавливает 16 здоровья. Сладко, липко и вовремя." });
+      picked.push({ kind: "Утешение", typ: "heal", id: "heal", name: "Кубок нектара", desc: "Восстанавливает 12 здоровья. Сладко, липко и вовремя." });
     }
     return picked;
   }
@@ -998,7 +1225,7 @@
         S.hero.hp += 12;
       }
     } else if (opt.typ === "heal") {
-      healHero(16);
+      healHero(12);
     }
     S.floor += 1;
     startBattle();
@@ -1008,11 +1235,12 @@
     setPortrait($("end-portrait"), win ? "melon" : "hero", "figure");
     $("end-portrait").classList.toggle("flirt-idle", true);
     $("end-title").innerHTML = win
-      ? 'Сад склонён<em>перед ароматом</em>'
-      : 'Шелуха опала<em>на этот раз</em>';
+      ? 'Сад склонён<em>перед хрустом</em>'
+      : 'Хруст смолк<em>на этот раз</em>';
     $("end-flavor").textContent = win
       ? pick(HERO_WIN_LINES) + " Дынька шепчет, что реванш будет ещё слаще — и уже поправляет кружева."
-      : "Сад ещё не допит до дна. Чесночек отряхивается, освежает аромат и готов к новой, не менее пикантной прогулке.";
+      : "Сад ещё не допит до дна. Чак отряхивается, освежает рассол и готов к новой, не менее пикантной прогулке.";
+    SFX.play(win ? "win" : "lose");
     if (win) burstFX($("end-portrait"), 12);
     showScreen("end");
   }
@@ -1261,6 +1489,19 @@
   function bind() {
     setPortrait($("age-portrait"), "hero", "figure");
     setPortrait($("title-portrait"), "hero", "figure");
+    SFX.setMuted(SFX.isMuted());
+
+    $("btn-mute").addEventListener("click", (e) => {
+      e.stopPropagation();
+      SFX.toggle();
+    });
+    document.addEventListener("pointerdown", () => SFX.unlock(), { passive: true });
+    document.addEventListener("keydown", () => SFX.unlock());
+    document.addEventListener("click", (e) => {
+      const b = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (!b || b.id === "btn-mute" || b.classList.contains("spell")) return;
+      SFX.play("click");
+    });
 
     $("btn-age-yes").addEventListener("click", () => applyAge("yes"));
     $("btn-age-no").addEventListener("click", () => applyAge("no"));
@@ -1294,9 +1535,43 @@
 
   window.__qa = {
     acceptAge() { applyAge("yes"); },
+    declineAge() { applyAge("no"); },
     startBoss: startBossForShot,
     startFight: startFightForShot,
-    startRun
+    startRun,
+    giveAllSpells() {
+      if (!S) return;
+      S.hero.spells = Object.keys(SPELLS);
+      renderChrome();
+    },
+    boardBox() {
+      const b = $("board").getBoundingClientRect();
+      return { w: Math.round(b.width), h: Math.round(b.height) };
+    },
+    spellBoxes() {
+      const app = $("app").getBoundingClientRect();
+      return [...document.querySelectorAll("#spells .spell")].map((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          name: (el.querySelector(".s-name") || {}).textContent || "",
+          w: Math.round(r.width),
+          h: Math.round(r.height),
+          inside: r.width >= 44 && r.height >= 44 &&
+            r.left >= app.left - 1 && r.top >= app.top - 1 &&
+            r.right <= app.right + 1 && r.bottom <= app.bottom + 1
+        };
+      });
+    },
+    sounds() {
+      const names = ["swap", "bad", "match", "spell", "hit", "attack", "shield", "heal", "win", "lose", "click"];
+      const errors = [];
+      for (const n of names) {
+        try { SFX.play(n, { combo: 4, type: "sap" }); }
+        catch (e) { errors.push(String(e && e.message || e)); }
+      }
+      return errors;
+    },
+    tutorialOpen() { return $("tutorial").classList.contains("show"); }
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);

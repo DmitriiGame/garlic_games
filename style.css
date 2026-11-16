@@ -1,4 +1,4 @@
-/* Принц Чесночек: Сад Искушений — ornate cartoon UI, mobile-first */
+/* Огурчик Чак: Сад Искушений — ornate cartoon UI, mobile-first */
 
 :root {
   --gold: #f0d078;
@@ -79,6 +79,10 @@ html, body {
   z-index: 0;
 }
 #app > * { position: relative; z-index: 1; }
+#app > .mute-btn {
+  position: absolute;
+  z-index: 40;
+}
 
 @media (min-width: 600px) {
   #app {
@@ -205,6 +209,9 @@ html, body {
 }
 .age-actions .btn { min-width: 128px; flex: 1 1 128px; max-width: 200px; }
 .age-exit { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.age-actions[hidden],
+.age-exit[hidden],
+#age-question[hidden] { display: none !important; }
 .badge-18 {
   position: absolute;
   top: max(10px, env(safe-area-inset-top));
@@ -222,6 +229,7 @@ html, body {
 
 /* ===== Battle ===== */
 #screen-battle {
+  position: relative;
   gap: 5px;
 }
 
@@ -373,6 +381,7 @@ html, body {
 
 /* Compact hero dock */
 .hero-dock {
+  position: relative;
   display: grid;
   grid-template-columns: 58px 1fr;
   column-gap: 8px;
@@ -403,7 +412,12 @@ html, body {
   pointer-events: none;
   object-fit: cover;
 }
-.hero-dock .portrait img.bust-hero { object-position: 50% 18%; transform: scale(1.35); transform-origin: 50% 15%; }
+.hero-dock .portrait img.bust-hero {
+  object-fit: cover;
+  object-position: center top;
+  transform: scale(2.1);
+  transform-origin: 66% 40%;
+}
 .hero-dock .who {
   display: flex;
   justify-content: space-between;
@@ -451,29 +465,24 @@ html, body {
   text-shadow: 0 1px 2px #000a;
 }
 
-/* Spells */
+/* Spells: every button stays fully on screen, wrapping instead of scrolling off */
 .spells {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
   flex: 0 0 auto;
-  padding: 1px 1px 4px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
-  scrollbar-width: none;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+  padding: 0;
 }
-.spells::-webkit-scrollbar { display: none; }
 
 .spell {
-  flex: 0 0 auto;
-  scroll-snap-align: start;
-  min-width: 122px;
-  max-width: 168px;
-  min-height: 60px;
-  padding: 7px 9px 6px;
-  border-radius: 14px;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 6px 4px;
+  border-radius: 12px;
   border: 2px solid #e8c36a99;
   background: linear-gradient(180deg, #5a2a50, #321428);
   color: var(--cream);
@@ -481,22 +490,26 @@ html, body {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   touch-action: manipulation;
-  box-shadow: inset 0 1px 0 #ffd0e044, 0 3px 0 #1a0814, 0 4px 10px #0005;
+  box-shadow: inset 0 1px 0 #ffd0e044, 0 2px 0 #1a0814, 0 3px 8px #0005;
 }
 .spell .s-name {
   font-family: var(--font-display);
-  font-size: 14.5px;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 1.1;
-}
-.spell .s-desc {
-  font-size: 10px;
-  color: var(--cream-dim);
-  line-height: 1.2;
+  line-height: 1.05;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.spell .s-desc {
+  font-size: 9.5px;
+  color: var(--cream-dim);
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -687,6 +700,11 @@ html, body {
 .toast.show { opacity: 1; }
 
 .tutorial {
+  position: absolute;
+  z-index: 8;
+  left: 6px;
+  right: 6px;
+  bottom: 54px;
   background: #2a1428f2;
   border: 2px solid var(--gold);
   border-radius: 14px;
@@ -694,10 +712,10 @@ html, body {
   font-size: 12.5px;
   color: var(--cream);
   display: none;
-  flex: 0 0 auto;
   gap: 8px;
   align-items: flex-start;
   box-shadow: var(--frame);
+  pointer-events: auto;
 }
 .tutorial.show { display: flex; }
 .tutorial p { flex: 1; text-wrap: pretty; }
@@ -897,6 +915,65 @@ html, body {
   0%, 100% { transform: scale(1) rotate(0); }
   25% { transform: scale(1.1) rotate(-7deg); }
   55% { transform: scale(1.06) rotate(5deg); }
+}
+
+.mute-btn {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  left: 10px;
+  z-index: 40;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 2px solid var(--gold);
+  background: #3a1840ee;
+  color: var(--cream);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #0006;
+  touch-action: manipulation;
+}
+.mute-btn:active { transform: translateY(1px); }
+
+.particle {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 6;
+  animation: particleFly 460ms ease-out forwards;
+}
+@keyframes particleFly {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.25); opacity: 0; }
+}
+
+.spell-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: fadeFlash 300ms ease forwards;
+}
+
+#app.shake { animation: appShake 280ms linear; }
+#app.shake-big { animation: appShakeBig 320ms linear; }
+@keyframes appShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+@keyframes appShakeBig {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translate(-5px, 1px); }
+  30% { transform: translate(5px, -1px); }
+  45% { transform: translate(-4px, 0); }
+  60% { transform: translate(4px, 1px); }
+  75% { transform: translate(-2px, 0); }
 }
 
 .fx-hit { animation: hitFlash 280ms ease; }

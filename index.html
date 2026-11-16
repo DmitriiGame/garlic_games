@@ -6,9 +6,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a0a18" />
-  <title>Принц Чесночек: Сад Искушений — 18+</title>
+  <title>Огурчик Чак: Сад Искушений — 18+</title>
   <link rel="preload" as="image" href="assets/bg-garden.jpg" />
-  <link rel="preload" as="image" href="assets/prince-garlic.png" />
+  <link rel="preload" as="image" href="assets/cucumber-chuck.png" />
   <link rel="preload" as="image" href="assets/melon-boss.png" />
   <link rel="preload" as="image" href="assets/chili-enemy.png" />
   <link rel="preload" as="image" href="assets/onion-enemy.png" />
@@ -24,6 +24,7 @@
 </head>
 <body>
   <div id="app">
+    <button type="button" id="btn-mute" class="mute-btn" aria-pressed="false" aria-label="Звук включён">🔊</button>
     <section id="screen-age" class="screen active" aria-label="Возрастное ограничение">
       <div class="splash-figure" id="age-portrait"></div>
       <h1 class="display-title">Игра 18+<em>Тебе есть 18?</em></h1>
@@ -38,7 +39,7 @@
       <div class="age-exit" id="age-exit" hidden>
         <p class="flavor" id="age-exit-text">
           Тогда это свидание не для тебя. Возвращайся, когда исполнится 18.
-          Принц Чесночек подождёт — и даже не будет дуться. Ну, почти.
+          Огурчик Чак подождёт — и даже не будет дуться. Ну, почти.
         </p>
         <button type="button" class="btn secondary" id="btn-age-back">Вернуться</button>
       </div>
@@ -47,10 +48,10 @@
     <section id="screen-title" class="screen" aria-label="Титульный экран">
       <div class="badge-18">18+</div>
       <div class="splash-figure flirt-idle" id="title-portrait"></div>
-      <h1 class="display-title">Принц Чесночек<em>Сад Искушений</em></h1>
+      <h1 class="display-title">Огурчик Чак<em>Сад Искушений</em></h1>
       <p class="flavor">
         В зачарованном огороде зреют совсем нескромные страсти.
-        Самый харизматичный зубчик королевства идёт туда, где овощи умеют подкатывать,
+        Самый хрустящий огурчик королевства идёт туда, где овощи умеют подкатывать,
         а спелость считается оружием массового соблазна.
       </p>
       <button type="button" class="btn" id="btn-start">Начать забег</button>
@@ -82,7 +83,7 @@
         <div class="portrait" id="hero-portrait"></div>
         <div class="hero-info">
           <div class="who">
-            <span id="hero-name">Принц Чесночек</span>
+            <span id="hero-name">Огурчик Чак</span>
             <span class="intent" id="hero-status"></span>
           </div>
           <div class="bar" id="hero-bar">
