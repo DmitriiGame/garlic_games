@@ -574,9 +574,16 @@ func _slider_line(caption: String, current: float, apply: Callable) -> Control:
 	slider.value = current * 100.0
 	slider.custom_minimum_size = Vector2(0, 36)
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var gate := {"on": false}
 	slider.value_changed.connect(func(value: float) -> void:
+		if not gate.on:
+			return
 		Sfx.note_input()
 		apply.call(value / 100.0)
+	)
+	slider.tree_entered.connect(func() -> void:
+		slider.set_value_no_signal(current * 100.0)
+		gate.on = true
 	)
 	slider.drag_ended.connect(func(_changed: bool) -> void:
 		Sfx.note_input()
