@@ -1,10 +1,14 @@
 extends Node
-## Эффекты на шине SFX, музыка на шине Music. Оба ползунка лежат в user://settings.cfg.
+## Эффекты на шине SFX, музыка на шине Music. Ползунки — user://settings.cfg.
+## На вебе потоки идут через AudioServer (playback Stream): sample-граф
+## молчит, если шины появились после старта драйвера. AudioContext на Android
+## будит html/head_include, из touchend и pointerup.
 
 const MUSIC_PATH := "res://audio/music/main.ogg"
 const MUSIC_TRIM_DB := -10.0
 const CROSSFADE := 3.2
 const FADE_IN := 1.8
+const PLAYBACK_STREAM := 1
 
 var muted: bool = false
 var volume: float = 0.4
@@ -23,11 +27,7 @@ var _duck := 1.0
 
 
 func _ready() -> void:
-	var cfg := ConfigFile.new()
-	if cfg.load("user://settings.cfg") == OK:
-		muted = bool(cfg.get_value("audio", "muted", false))
-		volume = clampf(float(cfg.get_value("audio", "volume", volume)), 0.0, 1.0)
-		music_volume = clampf(float(cfg.get_value("audio", "music", music_volume)), 0.0, 1.0)
+	_load_settings()
 	_ensure_buses()
 	_apply_bus()
 	if not OS.has_feature("web"):
@@ -73,6 +73,8 @@ func _process(delta: float) -> void:
 
 func note_input() -> void:
 	heard_input = true
+	_ensure_buses()
+	_apply_bus()
 	_ensure_music()
 
 
@@ -116,6 +118,38 @@ func toggle_mute() -> bool:
 	return muted
 
 
+func _load_settings() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load("user://settings.cfg") != OK:
+		return
+	muted = bool(cfg.get_value("audio", "muted", false))
+	var has_music := cfg.has_section_key("audio", "music")
+	var has_version := cfg.has_section_key("audio", "v")
+	volume = _read_unit(cfg, "volume", volume)
+	if has_music:
+		music_volume = _read_unit(cfg, "music", music_volume)
+	else:
+		# Старый единственный ползунок управлял всем.
+		music_volume = volume if volume > 0.001 else 0.4
+	# Ползунки нового титра могли записать 0 при создании, без кнопки «Тихо».
+	if not has_version and not muted and volume <= 0.001 and music_volume <= 0.001:
+		volume = 0.4
+		music_volume = 0.4
+
+
+func _read_unit(cfg: ConfigFile, key: String, fallback: float) -> float:
+	if not cfg.has_section_key("audio", key):
+		return fallback
+	var number := float(cfg.get_value("audio", key))
+	if is_nan(number) or is_inf(number):
+		return fallback
+	if number < 0.0:
+		number = db_to_linear(number)
+	if number > 1.0 and number <= 100.0:
+		number /= 100.0
+	return clampf(number, 0.0, 1.0)
+
+
 func _ensure_buses() -> void:
 	_bus("SFX")
 	_bus("Music")
@@ -147,8 +181,16 @@ func _apply_bus() -> void:
 		if music_volume <= 0.001:
 			AudioServer.set_bus_volume_db(music, -80.0)
 		else:
-			# Одинаковое положение ползунков: музыка на 10 дБ тише эффектов.
 			AudioServer.set_bus_volume_db(music, linear_to_db(music_volume * 0.45) + MUSIC_TRIM_DB)
+
+
+func _make_player(stream: AudioStream, bus_name: String) -> AudioStreamPlayer:
+	var player := AudioStreamPlayer.new()
+	player.stream = stream
+	player.playback_type = PLAYBACK_STREAM
+	player.bus = bus_name
+	add_child(player)
+	return player
 
 
 func _player(id: String) -> AudioStreamPlayer:
@@ -160,10 +202,7 @@ func _player(id: String) -> AudioStreamPlayer:
 	var stream: AudioStream = load(path)
 	if stream == null:
 		return null
-	var player := AudioStreamPlayer.new()
-	player.stream = stream
-	player.bus = "SFX"
-	add_child(player)
+	var player := _make_player(stream, "SFX")
 	players[id] = player
 	return player
 
@@ -181,12 +220,10 @@ func _ensure_music() -> void:
 	if stream is AudioStreamOggVorbis:
 		(stream as AudioStreamOggVorbis).loop = false
 	_ensure_buses()
+	_apply_bus()
 	for _i in 2:
-		var player := AudioStreamPlayer.new()
-		player.stream = stream
-		player.bus = "Music"
+		var player := _make_player(stream, "Music")
 		player.volume_db = -80.0
-		add_child(player)
 		_music.append(player)
 	_music_lead = 0
 	_fade = 0.0
@@ -219,4 +256,5 @@ func _save() -> void:
 	cfg.set_value("audio", "muted", muted)
 	cfg.set_value("audio", "volume", volume)
 	cfg.set_value("audio", "music", music_volume)
+	cfg.set_value("audio", "v", 2)
 	cfg.save("user://settings.cfg")
