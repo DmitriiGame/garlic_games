@@ -1,9 +1,30 @@
 extends Node
-## Забег на 30 дней. Все тексты, условия и эффекты читаются из data/events.json.
+## Три главы по 30 дней. Тексты, условия и эффекты читаются из data/events.json.
 
 const RES_PATH := "res://data/events.json"
 const USER_PATH := "user://events.json"
+const CHECKPOINT_PATH := "user://chapter_checkpoint.json"
 const STAT_ORDER: Array[String] = ["food", "health", "sanity", "ammo"]
+const KNOWN_SCENES: Array[String] = [
+	"door", "open", "basement", "window", "stranger", "radio", "dog", "street",
+	"mirror", "kid", "horde", "gun", "letter", "food", "cult", "soldier", "quiet",
+	"roof_tent", "roof_rain", "rooftops", "drone", "pigeon", "stairs_up",
+	"road", "camp", "car", "dacha", "wedding",
+]
+## Новые локации пока без своих рисунков: одна карта на все фоллбэки.
+const SCENE_ART_FALLBACK := {
+	"roof_tent": "window",
+	"roof_rain": "street",
+	"rooftops": "street",
+	"drone": "radio",
+	"pigeon": "window",
+	"stairs_up": "door",
+	"road": "street",
+	"camp": "soldier",
+	"car": "street",
+	"dacha": "food",
+	"wedding": "cult",
+}
 
 var data: Dictionary = {}
 var meta: Dictionary = {}
@@ -11,7 +32,12 @@ var events: Array = []
 var by_id: Dictionary = {}
 
 var day: int = 1
-var days_to_win: int = 30
+var chapter: int = 1
+var chapter_days: int = 30
+var days_to_win: int = 90
+var chapter_break: bool = false
+var chapter_report: Dictionary = {}
+var last_highlight: bool = false
 var stats: Dictionary = {}
 var flags: Dictionary = {}
 var flag_order: Array[String] = []
@@ -71,7 +97,8 @@ func load_data() -> bool:
 			continue
 		seen_ids[id] = true
 		by_id[id] = ev
-	days_to_win = int(meta.get("days_to_win", 30))
+	days_to_win = int(meta.get("days_to_win", 90))
+	chapter_days = int(meta.get("days_per_chapter", 30))
 	source_label = path
 	using_override = path == USER_PATH
 	return true
@@ -105,7 +132,12 @@ func start_run(fixed_seed: int = -1) -> void:
 		seed_value = randi() % 1000000
 	rng.seed = seed_value
 	day = 1
-	days_to_win = int(meta.get("days_to_win", 30))
+	chapter = 1
+	chapter_break = false
+	chapter_report = {}
+	last_highlight = false
+	days_to_win = int(meta.get("days_to_win", 90))
+	chapter_days = int(meta.get("days_per_chapter", 30))
 	flags.clear()
 	flag_order.clear()
 	seen.clear()
@@ -118,11 +150,8 @@ func start_run(fixed_seed: int = -1) -> void:
 	var spec: Dictionary = meta.get("stats", {})
 	for id in STAT_ORDER:
 		stats[id] = int(spec.get(id, {}).get("start", 0))
-	var opening := str(meta.get("opening_event", ""))
-	if opening != "" and by_id.has(opening) and _eligible(by_id[opening]):
-		pending = by_id[opening]
-	else:
-		pending = _pick("")
+	pending = _opening_or_pick(1)
+	save_checkpoint()
 
 
 func stat_label(id: String) -> String:
@@ -171,7 +200,8 @@ func choose(which: String) -> Dictionary:
 	var branch := _resolve_branch(raw)
 	var event_id := str(event.get("id", ""))
 	if event_id != "":
-		seen[event_id] = true
+		seen[event_id] = int(seen.get(event_id, 0)) + 1
+	last_highlight = bool(event.get("highlight", false))
 	var deltas := _apply_effects(branch.get("effects", {}))
 	var gained: Dictionary = deltas.duplicate()
 	_apply_flags(branch)
@@ -213,11 +243,14 @@ func choose(which: String) -> Dictionary:
 					line = _fill(str(branch.get("text", "")))
 		ending_title = title
 		ending_line = line if line != "" else _fill(str(branch.get("text", "")))
-	elif day >= days_to_win:
-		run_over = true
-		won = true
-		ending_title = str(meta.get("win_title", "Дверь осталась при тебе"))
-		ending_line = str(meta.get("win_line", "Тридцать дней. Ты ещё дышишь."))
+	elif day >= chapter_days:
+		if chapter >= _chapter_count():
+			run_over = true
+			won = true
+			ending_title = str(meta.get("win_title", "Три адреса"))
+			ending_line = str(meta.get("win_line", "Девяносто дней. Вы ещё дышите."))
+		else:
+			_mark_chapter_break()
 	else:
 		day += 1
 		pending = _pick(event_id)
@@ -236,6 +269,8 @@ func choose(which: String) -> Dictionary:
 		"choice": which,
 		"scene": str(event.get("scene", "quiet")),
 		"image": illustration_path(event),
+		"highlight": last_highlight,
+		"chapter_break": chapter_break,
 	}
 	return last_reveal
 
@@ -248,6 +283,24 @@ func scene_id() -> String:
 	return str(pending.get("scene", "quiet"))
 
 
+func is_highlight() -> bool:
+	return bool(pending.get("highlight", false))
+
+
+func chapter_title(number: int = -1) -> String:
+	var info := _chapter_info(chapter if number < 0 else number)
+	var name := str(info.get("name", ""))
+	return name if name != "" else "Глава"
+
+
+func total_day() -> int:
+	return (chapter - 1) * chapter_days + day
+
+
+func header_text() -> String:
+	return "Глава %d · %s · День %02d" % [chapter, chapter_title(), day]
+
+
 func sound_key(event: Dictionary = {}) -> String:
 	var source: Dictionary = event if not event.is_empty() else pending
 	var named := str(source.get("sound", "")).strip_edges().replace("\\", "/")
@@ -255,12 +308,18 @@ func sound_key(event: Dictionary = {}) -> String:
 	for ext in [".ogg", ".wav"]:
 		if named.ends_with(ext):
 			named = named.trim_suffix(ext)
+	var scene_name := str(source.get("scene", "quiet"))
 	if named == "":
-		named = "scenes/%s" % str(source.get("scene", "quiet"))
+		named = "scenes/%s" % scene_name
 	var path := "res://audio/%s.ogg" % named
 	if ResourceLoader.exists(path) or FileAccess.file_exists(path):
 		return named
-	return "scenes/%s" % str(source.get("scene", "quiet"))
+	var mapped := str(SCENE_ART_FALLBACK.get(scene_name, ""))
+	if mapped != "":
+		var fallback := "res://audio/scenes/%s.ogg" % mapped
+		if ResourceLoader.exists(fallback) or FileAccess.file_exists(fallback):
+			return "scenes/%s" % mapped
+	return "scenes/%s" % scene_name
 
 
 func illustration_path(event: Dictionary = {}) -> String:
@@ -272,12 +331,18 @@ func illustration_path(event: Dictionary = {}) -> String:
 	for ext in [".webp", ".jpg", ".jpeg", ".png"]:
 		if named.ends_with(ext):
 			named = named.trim_suffix(ext)
+	var scene_name := str(source.get("scene", "quiet"))
 	var path := "res://art/%s.webp" % named
 	if _resource_exists(path):
 		return path
-	var by_scene := "res://art/scenes/%s.webp" % str(source.get("scene", "quiet"))
+	var by_scene := "res://art/scenes/%s.webp" % scene_name
 	if _resource_exists(by_scene):
 		return by_scene
+	var mapped := str(SCENE_ART_FALLBACK.get(scene_name, ""))
+	if mapped != "":
+		var fallback := "res://art/scenes/%s.webp" % mapped
+		if _resource_exists(fallback):
+			return fallback
 	return "res://art/hero.webp"
 
 
@@ -296,6 +361,10 @@ func eligible_ids() -> Array[String]:
 
 
 func _pick(avoid_id: String) -> Dictionary:
+	if day >= chapter_days:
+		var finale := _finale_event()
+		if not finale.is_empty():
+			return finale
 	var pool: Array[Dictionary] = []
 	var total := 0
 	var priority: Array[Dictionary] = []
@@ -305,7 +374,7 @@ func _pick(avoid_id: String) -> Dictionary:
 			continue
 		if not _eligible(ev):
 			continue
-		var weight := maxi(0, int(ev.get("weight", 1)))
+		var weight := _weight_of(ev)
 		if weight <= 0:
 			continue
 		pool.append(ev)
@@ -325,23 +394,30 @@ func _pick(avoid_id: String) -> Dictionary:
 			if str(ev.get("id", "")) == avoid_id:
 				continue
 			trimmed.append(ev)
-			trimmed_total += maxi(1, int(ev.get("weight", 1)))
+			trimmed_total += maxi(1, _weight_of(ev))
 		if not trimmed.is_empty():
 			pool = trimmed
 			total = trimmed_total
 	var roll := rng.randi_range(1, maxi(1, total))
 	var acc := 0
 	for ev in pool:
-		acc += maxi(1, int(ev.get("weight", 1)))
+		acc += maxi(1, _weight_of(ev))
 		if roll <= acc:
 			return ev
 	return pool[0]
 
 
 func _eligible(ev: Dictionary) -> bool:
-	if bool(ev.get("once", true)) and seen.has(str(ev.get("id", ""))):
+	var event_id := str(ev.get("id", ""))
+	var times := int(seen.get(event_id, 0))
+	var cap := 1 if bool(ev.get("once", true)) else int(ev.get("max_times", 3))
+	if times >= cap:
+		return false
+	if _chapter_of(ev) != chapter:
 		return false
 	var cond: Dictionary = ev.get("when", {})
+	if cond.has("chapter") and int(cond.get("chapter", chapter)) != chapter:
+		return false
 	if day < int(cond.get("min_day", 1)):
 		return false
 	if day > int(cond.get("max_day", 999)):
@@ -361,8 +437,8 @@ func _eligible(ev: Dictionary) -> bool:
 				break
 		if not ok:
 			return false
-	for event_id in cond.get("seen_all", []):
-		if not seen.has(str(event_id)):
+	for prior_id in cond.get("seen_all", []):
+		if int(seen.get(str(prior_id), 0)) <= 0:
 			return false
 	var stat_rules: Dictionary = cond.get("stats", {})
 	for key in stat_rules.keys():
@@ -467,9 +543,185 @@ func _set_flag(flag: String) -> void:
 
 func _fill(text: String) -> String:
 	var filled := text.replace("{day}", str(day))
+	filled = filled.replace("{chapter}", str(chapter))
 	for id in STAT_ORDER:
 		filled = filled.replace("{%s}" % id, str(int(stats.get(id, 0))))
 	return filled
+
+
+func _chapter_count() -> int:
+	var list: Array = meta.get("chapters", [])
+	return maxi(1, list.size())
+
+
+func _chapter_info(number: int) -> Dictionary:
+	var list: Array = meta.get("chapters", [])
+	for item in list:
+		if typeof(item) == TYPE_DICTIONARY and int(item.get("id", 0)) == number:
+			return item
+	var index := number - 1
+	if index >= 0 and index < list.size() and typeof(list[index]) == TYPE_DICTIONARY:
+		return list[index]
+	return {}
+
+
+func _chapter_of(ev: Dictionary) -> int:
+	if ev.has("chapter"):
+		return int(ev.get("chapter", 1))
+	var cond: Dictionary = ev.get("when", {})
+	if cond.has("chapter"):
+		return int(cond.get("chapter", 1))
+	return 1
+
+
+func _highlights_seen() -> int:
+	var count := 0
+	for ev in events:
+		if typeof(ev) != TYPE_DICTIONARY or not bool(ev.get("highlight", false)):
+			continue
+		if _chapter_of(ev) != chapter:
+			continue
+		if int(seen.get(str(ev.get("id", "")), 0)) > 0:
+			count += 1
+	return count
+
+
+func _weight_of(ev: Dictionary) -> int:
+	var weight := maxi(0, int(ev.get("weight", 1)))
+	if weight <= 0 or not bool(ev.get("highlight", false)):
+		return weight
+	var count := _highlights_seen()
+	if count >= 3:
+		return 0
+	# Подряд две изюминки не ставим: буст включается только после паузы.
+	if last_highlight:
+		return weight
+	if count == 0 and day >= 5:
+		return weight * 6
+	if count == 1 and day >= 12:
+		return weight * 6
+	if count == 2 and day >= 18:
+		return weight * 3
+	return weight
+
+
+func _finale_event() -> Dictionary:
+	var finale_id := str(_chapter_info(chapter).get("finale", ""))
+	if finale_id == "" or not by_id.has(finale_id):
+		return {}
+	var ev: Dictionary = by_id[finale_id]
+	if _eligible(ev):
+		return ev
+	return {}
+
+
+func _opening_or_pick(number: int) -> Dictionary:
+	var opening := str(_chapter_info(number).get("opening", ""))
+	if opening == "" and number == 1:
+		opening = str(meta.get("opening_event", ""))
+	if opening != "" and by_id.has(opening) and _eligible(by_id[opening]):
+		return by_id[opening]
+	return _pick("")
+
+
+func _mark_chapter_break() -> void:
+	chapter_break = true
+	var info := _chapter_info(chapter)
+	chapter_report = {
+		"number": chapter,
+		"name": str(info.get("name", chapter_title(chapter))),
+		"line": str(info.get("clear_line", "Глава пройдена.")),
+		"next": str(info.get("next_label", "Дальше")),
+	}
+
+
+func advance_chapter() -> void:
+	if not chapter_break or chapter >= _chapter_count():
+		chapter_break = false
+		return
+	chapter += 1
+	day = 1
+	chapter_break = false
+	last_highlight = false
+	pending = _opening_or_pick(chapter)
+	save_checkpoint()
+
+
+func peek_checkpoint() -> Dictionary:
+	if not FileAccess.file_exists(CHECKPOINT_PATH):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(CHECKPOINT_PATH))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	return parsed
+
+
+func save_checkpoint() -> void:
+	var text := JSON.stringify(checkpoint_payload())
+	if text.is_empty():
+		return
+	_write_text(CHECKPOINT_PATH, text)
+
+
+func checkpoint_payload() -> Dictionary:
+	return {
+		"chapter": chapter,
+		"day": day,
+		"seed": seed_value,
+		"rng_state": rng.state,
+		"stats": stats.duplicate(),
+		"flags": flags.duplicate(),
+		"flag_order": flag_order.duplicate(),
+		"seen": seen.duplicate(),
+		"pending": str(pending.get("id", "")),
+		"last_highlight": last_highlight,
+	}
+
+
+func load_checkpoint() -> bool:
+	var parsed := peek_checkpoint()
+	if parsed.is_empty():
+		return false
+	load_data()
+	seed_value = int(parsed.get("seed", 0))
+	rng.seed = seed_value
+	rng.state = int(parsed.get("rng_state", rng.state))
+	chapter = maxi(1, int(parsed.get("chapter", 1)))
+	day = maxi(1, int(parsed.get("day", 1)))
+	days_to_win = int(meta.get("days_to_win", 90))
+	chapter_days = int(meta.get("days_per_chapter", 30))
+	chapter_break = false
+	chapter_report = {}
+	last_highlight = bool(parsed.get("last_highlight", false))
+	run_over = false
+	won = false
+	ending_title = ""
+	ending_line = ""
+	last_reveal = {}
+	stats.clear()
+	var saved_stats: Dictionary = parsed.get("stats", {})
+	var spec: Dictionary = meta.get("stats", {})
+	for id in STAT_ORDER:
+		stats[id] = int(saved_stats.get(id, spec.get(id, {}).get("start", 0)))
+	flags.clear()
+	flag_order.clear()
+	var saved_flags: Dictionary = parsed.get("flags", {})
+	for flag in parsed.get("flag_order", []):
+		if bool(saved_flags.get(str(flag), false)):
+			_set_flag(str(flag))
+	for flag in saved_flags.keys():
+		if bool(saved_flags[flag]):
+			_set_flag(str(flag))
+	seen.clear()
+	var saved_seen: Dictionary = parsed.get("seen", {})
+	for key in saved_seen.keys():
+		seen[str(key)] = int(saved_seen[key])
+	var pending_id := str(parsed.get("pending", ""))
+	if pending_id != "" and by_id.has(pending_id):
+		pending = by_id[pending_id]
+	else:
+		pending = _pick("")
+	return true
 
 
 func _fallback() -> Dictionary:
