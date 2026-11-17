@@ -20,8 +20,13 @@ func _initialize() -> void:
 	print("careful ", careful)
 	print("reckless ", reckless)
 	print("random ", random_runs)
-	if int(careful.get("wins", 0)) < 1:
-		errors.append("осторожная стратегия ни разу не дожила до победы")
+	var careful_rate := float(careful.get("wins", 0)) / 40.0
+	var ammo_avg := float(careful.get("ammo_events", 0)) / 40.0
+	print("careful_win_rate ", careful_rate, " ammo_avg ", ammo_avg)
+	if careful_rate < 0.40 or careful_rate > 0.55:
+		errors.append("осторожный винрейт вне 40–55%%: %.2f" % careful_rate)
+	if ammo_avg < 3.0:
+		errors.append("мало патронных событий за забег: %.2f" % ammo_avg)
 	if int(reckless.get("deaths", 0)) < 1:
 		errors.append("безрассудная стратегия ни разу не умерла")
 	if int(random_runs.get("deaths", 0)) < 1:
@@ -99,10 +104,13 @@ func _play_many(game: Node, policy: String, count: int) -> Dictionary:
 	var deaths := 0
 	var days := 0
 	var longest := 0
+	var ammo_events := 0
 	var causes := {}
 	for seed in count:
-		var end_day := _play(game, policy, 1000 + seed)
+		var result: Dictionary = _play(game, policy, 1000 + seed)
+		var end_day := int(result.get("day", 0))
 		days += end_day
+		ammo_events += int(result.get("ammo", 0))
 		longest = maxi(longest, end_day)
 		if game.won:
 			wins += 1
@@ -115,18 +123,49 @@ func _play_many(game: Node, policy: String, count: int) -> Dictionary:
 		"deaths": deaths,
 		"avg_day": float(days) / float(count),
 		"longest": longest,
+		"ammo_events": ammo_events,
 		"causes": causes,
 	}
 
 
-func _play(game: Node, policy: String, seed: int) -> int:
+func _play(game: Node, policy: String, seed: int) -> Dictionary:
 	game.start_run(seed)
 	var guard := 0
+	var ammo_seen := 0
 	while not game.run_over and guard < 40:
+		if _is_ammo_event(game.pending):
+			ammo_seen += 1
 		var which := _pick_choice(game, policy)
 		game.choose(which)
 		guard += 1
-	return game.day
+	return {"day": game.day, "ammo": ammo_seen}
+
+
+func _is_ammo_event(ev: Dictionary) -> bool:
+	for which in ["a", "b"]:
+		var branch: Variant = ev.get(which, {})
+		if _touches_ammo(branch):
+			return true
+	return false
+
+
+func _touches_ammo(branch: Variant) -> bool:
+	if typeof(branch) != TYPE_DICTIONARY:
+		return false
+	var effects: Variant = branch.get("effects", {})
+	var needs: Variant = branch.get("needs", {})
+	if typeof(effects) == TYPE_DICTIONARY and effects.has("ammo"):
+		return true
+	if typeof(needs) == TYPE_DICTIONARY and needs.has("ammo"):
+		return true
+	if typeof(branch.get("blocked", null)) == TYPE_DICTIONARY and _touches_ammo(branch.blocked):
+		return true
+	var roll: Variant = branch.get("roll", [])
+	if typeof(roll) == TYPE_ARRAY:
+		for entry in roll:
+			if _touches_ammo(entry):
+				return true
+	return false
 
 
 func _pick_choice(game: Node, policy: String) -> String:
