@@ -8,14 +8,15 @@ var selected: int = -1
 var list: ItemList
 var status: Label
 var setup_edit: TextEdit
+var image_edit: LineEdit
 var fields: Dictionary = {}
 var roll_note: Label
 var lock := false
 
-const PAPER := Color("f4ecdf")
-const MUTED := Color("a39888")
-const AMBER := Color("f0a05a")
-const INK := Color("14110e")
+const PAPER := Color("f7f3ea")
+const MUTED := Color("3d4e78")
+const AMBER := Color("1c3268")
+const INK := Color("f7f3ea")
 const STATS: Array[String] = ["food", "health", "sanity", "ammo"]
 
 
@@ -81,6 +82,11 @@ func _build() -> void:
 
 	setup_edit = _area("Ситуация", 4)
 	box.add_child(setup_edit.get_parent())
+	image_edit = LineEdit.new()
+	image_edit.placeholder_text = "картинка: пусто = scenes/<сцена>"
+	image_edit.custom_minimum_size = Vector2(0, 52)
+	image_edit.add_theme_font_size_override("font_size", 22)
+	box.add_child(image_edit)
 
 	for which in ["a", "b"]:
 		var title := "Выбор А" if which == "a" else "Выбор Б"
@@ -167,6 +173,7 @@ func _current() -> Dictionary:
 func _load_selected() -> void:
 	var ev := _current()
 	setup_edit.text = str(ev.get("setup", ""))
+	image_edit.text = str(ev.get("image", ""))
 	for which in ["a", "b"]:
 		var branch: Dictionary = ev.get(which, {})
 		fields[which]["label"].text = str(branch.get("label", ""))
@@ -187,6 +194,11 @@ func _store_selected() -> void:
 	if ev.is_empty():
 		return
 	ev["setup"] = setup_edit.text
+	var picture := image_edit.text.strip_edges()
+	if picture == "":
+		ev.erase("image")
+	else:
+		ev["image"] = picture
 	for which in ["a", "b"]:
 		if typeof(ev.get(which)) != TYPE_DICTIONARY:
 			ev[which] = {}
@@ -276,9 +288,11 @@ func _button(text: String, primary: bool) -> Button:
 	button.custom_minimum_size = Vector2(0, 64)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.add_theme_font_size_override("font_size", 20)
-	button.add_theme_color_override("font_color", INK if primary else PAPER)
+	button.add_theme_color_override("font_color", PAPER if primary else AMBER)
 	var style := StyleBoxFlat.new()
-	style.bg_color = AMBER if primary else Color("2c261f")
+	style.bg_color = AMBER if primary else PAPER
+	style.set_border_width_all(3)
+	style.border_color = AMBER
 	style.corner_radius_top_left = 14
 	style.corner_radius_top_right = 14
 	style.corner_radius_bottom_right = 14

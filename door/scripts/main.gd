@@ -1,14 +1,13 @@
 extends Control
 ## Портретный интерфейс: титр, день, раскрытие, карточка конца, правка текстов.
 
-const NIGHT := Color("1a1613")
-const INK := Color("14110e")
-const PAPER := Color("f4ecdf")
-const MUTED := Color("a39888")
-const BLOOD := Color("e5484d")
-const MOSS := Color("c5d67a")
-const AMBER := Color("f0a05a")
-const PANEL := Color("241f1b")
+const DESK := Color("e6d7bc")
+const INK := Color("1c3268")
+const PAPER := Color("f7f3ea")
+const MUTED := Color("5c6d90")
+const BLOOD := Color("c43737")
+const MOSS := Color("1c3268")
+const AMBER := Color("c43737")
 
 var display: Font
 var body: Font
@@ -16,7 +15,7 @@ var column: Control
 var shake_host: Control
 var screens: Dictionary = {}
 var current: Control
-var stick: Control
+var day_photo: TextureRect
 var day_title: Label
 var day_text: RichTextLabel
 var day_hint: Label
@@ -25,7 +24,10 @@ var choice_b: Button
 var reveal_text: RichTextLabel
 var reveal_notes: Label
 var delta_box: HBoxContainer
-var reveal_stick: Control
+var reveal_photo: TextureRect
+var end_photo: TextureRect
+var end_mark: Label
+var end_rule: ColorRect
 var next_button: Button
 var end_kicker: Label
 var end_day: Label
@@ -47,12 +49,14 @@ var shot_mode: bool = false
 
 func _ready() -> void:
 	shot_mode = OS.get_environment("DOOR_SHOT") != ""
-	display = _font("res://fonts/Unbounded.ttf", 780)
-	body = _font("res://fonts/Manrope.ttf", 560)
+	display = _font("res://fonts/Caveat.ttf", 700)
+	body = load("res://fonts/Pangolin-Regular.ttf")
 	_build()
 	_show_screen(screens.title)
 	if shot_mode:
 		_run_shots()
+	elif OS.is_debug_build():
+		_maybe_web_card()
 
 
 func _font(path: String, weight: int) -> Font:
@@ -110,7 +114,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _build() -> void:
 	var backdrop := ColorRect.new()
-	backdrop.color = NIGHT
+	backdrop.color = DESK
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(backdrop)
@@ -122,6 +126,10 @@ func _build() -> void:
 	get_viewport().size_changed.connect(_fit_column)
 	_fit_column()
 
+	var paper := preload("res://scripts/notebook.gd").new()
+	paper.set_anchors_preset(Control.PRESET_FULL_RECT)
+	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(paper)
 	shake_host = Control.new()
 	shake_host.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shake_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -157,15 +165,13 @@ func _build_title() -> Control:
 	var screen := _screen()
 	var box := _column(screen)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	var art := _art_host(340)
+	var art := _art_host(360)
 	box.add_child(art)
-	var stick_title: Control = preload("res://scripts/stick.gd").new()
-	stick_title.set_anchors_preset(Control.PRESET_FULL_RECT)
-	stick_title.scene_name = "door"
-	art.add_child(stick_title)
-	box.add_child(_label("ОТКРОЕШЬ", 64, PAPER, display, HORIZONTAL_ALIGNMENT_CENTER))
-	box.add_child(_label("ДВЕРЬ?", 92, AMBER, display, HORIZONTAL_ALIGNMENT_CENTER))
-	var tag := _label(str(Game.meta.get("tagline", "Тридцать дней. Один стук. Два пальца.")), 26, MUTED, body, HORIZONTAL_ALIGNMENT_CENTER)
+	var title_photo := _photo_in(art)
+	_present_photo(title_photo, "res://art/hero.webp", false)
+	box.add_child(_label("ОТКРОЕШЬ", 68, INK, display, HORIZONTAL_ALIGNMENT_CENTER))
+	box.add_child(_label("ДВЕРЬ?", 96, BLOOD, display, HORIZONTAL_ALIGNMENT_CENTER))
+	var tag := _label(str(Game.meta.get("tagline", "Тридцать дней. Один стук. Два пальца.")), 28, MUTED, body, HORIZONTAL_ALIGNMENT_CENTER)
 	tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(tag)
 	var start := _button("Начать", true)
@@ -188,7 +194,7 @@ func _build_day() -> Control:
 	var box := _column(screen)
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 12)
-	day_title = _label("ДЕНЬ 01", 36, PAPER, display, HORIZONTAL_ALIGNMENT_LEFT)
+	day_title = _label("ДЕНЬ 01", 42, INK, display, HORIZONTAL_ALIGNMENT_LEFT)
 	day_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(day_title)
 	var mute := _button("звук", false)
@@ -201,12 +207,10 @@ func _build_day() -> Control:
 	day_hint = _label("", 22, MUTED, body, HORIZONTAL_ALIGNMENT_LEFT)
 	day_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(day_hint)
-	var art := _art_host(300)
+	var art := _art_host(420)
 	art.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	art.size_flags_stretch_ratio = 1.1
-	stick = preload("res://scripts/stick.gd").new()
-	stick.set_anchors_preset(Control.PRESET_FULL_RECT)
-	art.add_child(stick)
+	art.size_flags_stretch_ratio = 1.35
+	day_photo = _photo_in(art)
 	box.add_child(art)
 	day_text = _rich(30)
 	day_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -228,12 +232,10 @@ func _build_day() -> Control:
 func _build_reveal() -> Control:
 	var screen := _screen()
 	var box := _column(screen)
-	box.add_child(_label("И ВОТ", 22, AMBER, display, HORIZONTAL_ALIGNMENT_LEFT))
-	var art := _art_host(280)
+	box.add_child(_label("И ВОТ", 28, BLOOD, display, HORIZONTAL_ALIGNMENT_LEFT))
+	var art := _art_host(360)
 	art.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	reveal_stick = preload("res://scripts/stick.gd").new()
-	reveal_stick.set_anchors_preset(Control.PRESET_FULL_RECT)
-	art.add_child(reveal_stick)
+	reveal_photo = _photo_in(art)
 	box.add_child(art)
 	reveal_text = _rich(36)
 	reveal_text.custom_minimum_size = Vector2(0, 160)
@@ -256,25 +258,27 @@ func _build_reveal() -> Control:
 func _build_end() -> Control:
 	var screen := _screen()
 	var box := _column(screen)
-	end_kicker = _label("ОТКРОЕШЬ ДВЕРЬ?", 20, AMBER, display, HORIZONTAL_ALIGNMENT_CENTER)
+	end_kicker = _label("ОТКРОЕШЬ ДВЕРЬ?", 26, BLOOD, display, HORIZONTAL_ALIGNMENT_CENTER)
 	box.add_child(end_kicker)
-	end_day = _label("14", 120, PAPER, display, HORIZONTAL_ALIGNMENT_CENTER)
+	end_day = _label("14", 92, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
 	box.add_child(end_day)
-	end_title = _label("", 42, PAPER, display, HORIZONTAL_ALIGNMENT_CENTER)
+	end_title = _label("", 46, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
 	end_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(end_title)
-	var rule := ColorRect.new()
-	rule.custom_minimum_size = Vector2(0, 3)
-	rule.color = AMBER
-	box.add_child(rule)
-	end_line = _label("", 26, PAPER, body, HORIZONTAL_ALIGNMENT_CENTER)
+	end_rule = ColorRect.new()
+	end_rule.custom_minimum_size = Vector2(0, 3)
+	end_rule.color = BLOOD
+	box.add_child(end_rule)
+	end_line = _label("", 26, INK, body, HORIZONTAL_ALIGNMENT_CENTER)
 	end_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(end_line)
-	var art := _art_host(220)
-	var end_stick: Control = preload("res://scripts/stick.gd").new()
-	end_stick.name = "EndStick"
-	end_stick.set_anchors_preset(Control.PRESET_FULL_RECT)
-	art.add_child(end_stick)
+	var art := _art_host(280)
+	end_photo = _photo_in(art)
+	end_mark = _label("✗", 140, BLOOD, display, HORIZONTAL_ALIGNMENT_CENTER)
+	end_mark.set_anchors_preset(Control.PRESET_FULL_RECT)
+	end_mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	end_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.add_child(end_mark)
 	box.add_child(art)
 	end_bits = VBoxContainer.new()
 	end_bits.add_theme_constant_override("separation", 4)
@@ -300,7 +304,7 @@ func _build_end() -> Control:
 func _screen() -> Control:
 	var screen := MarginContainer.new()
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
-	screen.add_theme_constant_override("margin_left", 28)
+	screen.add_theme_constant_override("margin_left", 62)
 	screen.add_theme_constant_override("margin_right", 28)
 	screen.add_theme_constant_override("margin_top", 22)
 	screen.add_theme_constant_override("margin_bottom", 18)
@@ -322,13 +326,53 @@ func _art_host(min_h: float) -> Control:
 	host.custom_minimum_size = Vector2(0, min_h)
 	host.clip_contents = true
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("120f0d")
-	style.corner_radius_top_left = 22
-	style.corner_radius_top_right = 22
-	style.corner_radius_bottom_right = 22
-	style.corner_radius_bottom_left = 22
+	style.bg_color = PAPER
+	style.set_border_width_all(3)
+	style.border_color = INK
+	style.set_corner_radius_all(6)
+	style.shadow_color = Color(0.11, 0.2, 0.4, 0.18)
+	style.shadow_size = 6
+	style.shadow_offset = Vector2(3, 4)
 	host.add_theme_stylebox_override("panel", style)
 	return host
+
+
+func _photo_in(host: Control) -> TextureRect:
+	var rect := TextureRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	host.add_child(rect)
+	return rect
+
+
+func _present_photo(rect: TextureRect, path: String, motion: bool) -> void:
+	if rect == null:
+		return
+	var changed := str(rect.get_meta("path", "")) != path
+	rect.set_meta("path", path)
+	var texture: Texture2D = null
+	if path != "" and (ResourceLoader.exists(path) or FileAccess.file_exists(path)):
+		texture = load(path)
+	rect.texture = texture
+	if not motion:
+		rect.modulate.a = 1.0
+		rect.position = Vector2.ZERO
+		rect.rotation_degrees = 0.0
+		return
+	rect.pivot_offset = rect.size * 0.5
+	if rect.pivot_offset == Vector2.ZERO:
+		rect.pivot_offset = Vector2(180, 160)
+	if changed:
+		rect.modulate.a = 0.0
+		rect.position = Vector2(randf_range(-26, 26), 14)
+		rect.rotation_degrees = randf_range(-2.4, 2.4)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(rect, "modulate:a", 1.0, 0.28)
+	tween.tween_property(rect, "position", Vector2.ZERO, 0.34).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(rect, "rotation_degrees", randf_range(-0.35, 0.35), 0.34)
 
 
 func _label(text: String, size: int, color: Color, font: Font, align: HorizontalAlignment) -> Label:
@@ -339,8 +383,7 @@ func _label(text: String, size: int, color: Color, font: Font, align: Horizontal
 	label.add_theme_font_override("font", font)
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.35))
-	label.add_theme_constant_override("shadow_offset_y", 2)
+	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 	return label
 
 
@@ -356,7 +399,7 @@ func _rich(size: int) -> RichTextLabel:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.add_theme_font_override("normal_font", body)
 	label.add_theme_font_size_override("normal_font_size", size)
-	label.add_theme_color_override("default_color", PAPER)
+	label.add_theme_color_override("default_color", INK)
 	label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 	return label
 
@@ -368,36 +411,35 @@ func _button(text: String, primary: bool) -> Button:
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.custom_minimum_size = Vector2(0, 92)
 	button.add_theme_font_override("font", display)
-	button.add_theme_font_size_override("font_size", 28)
+	button.add_theme_font_size_override("font_size", 34)
 	button.add_theme_stylebox_override("normal", _button_style(primary, false))
 	button.add_theme_stylebox_override("hover", _button_style(primary, true))
 	button.add_theme_stylebox_override("pressed", _button_style(primary, true))
 	button.add_theme_stylebox_override("focus", _button_style(primary, true))
 	button.add_theme_stylebox_override("disabled", _button_style(false, false))
-	button.add_theme_color_override("font_color", INK if primary else PAPER)
-	button.add_theme_color_override("font_hover_color", INK if primary else AMBER)
-	button.add_theme_color_override("font_pressed_color", INK if primary else AMBER)
-	button.add_theme_color_override("font_focus_color", INK if primary else PAPER)
+	button.add_theme_color_override("font_color", PAPER if primary else INK)
+	button.add_theme_color_override("font_hover_color", PAPER if primary else BLOOD)
+	button.add_theme_color_override("font_pressed_color", PAPER if primary else BLOOD)
+	button.add_theme_color_override("font_focus_color", PAPER if primary else INK)
 	button.add_theme_color_override("font_disabled_color", MUTED)
 	return button
 
 
 func _button_style(primary: bool, hot: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.corner_radius_top_left = 18
-	style.corner_radius_top_right = 18
-	style.corner_radius_bottom_right = 18
-	style.corner_radius_bottom_left = 18
+	style.set_corner_radius_all(10)
 	style.content_margin_left = 18
 	style.content_margin_right = 18
-	style.content_margin_top = 12
-	style.content_margin_bottom = 12
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
 	if primary:
-		style.bg_color = Color("ffb56e") if hot else AMBER
-	else:
-		style.bg_color = Color("2c261f") if hot else Color(0, 0, 0, 0)
+		style.bg_color = Color("16306a") if hot else INK
 		style.set_border_width_all(3)
-		style.border_color = AMBER if hot else PAPER
+		style.border_color = INK
+	else:
+		style.bg_color = Color(PAPER.r, PAPER.g, PAPER.b, 0.72) if hot else Color(PAPER.r, PAPER.g, PAPER.b, 0.35)
+		style.set_border_width_all(3)
+		style.border_color = BLOOD if hot else INK
 	return style
 
 
@@ -409,7 +451,7 @@ func _stat_row() -> HBoxContainer:
 		var cell := VBoxContainer.new()
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.alignment = BoxContainer.ALIGNMENT_CENTER
-		var number := _label("0", 40, PAPER, display, HORIZONTAL_ALIGNMENT_CENTER)
+		var number := _label("0", 40, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
 		stat_numbers[id] = number
 		cell.add_child(number)
 		var name := _label(Game.stat_label(id), 20, MUTED, body, HORIZONTAL_ALIGNMENT_CENTER)
@@ -426,9 +468,9 @@ func _refresh_stats(pop_id: String = "") -> void:
 		if value <= 0:
 			number.add_theme_color_override("font_color", BLOOD)
 		elif value == 1:
-			number.add_theme_color_override("font_color", AMBER)
+			number.add_theme_color_override("font_color", BLOOD)
 		else:
-			number.add_theme_color_override("font_color", PAPER)
+			number.add_theme_color_override("font_color", INK)
 		if id == pop_id:
 			_pop(number)
 
@@ -511,8 +553,7 @@ func _show_day() -> void:
 	day_hint.text = Game.night_hint()
 	_refresh_stats()
 	_refresh_mute()
-	stick.scene_name = Game.scene_id()
-	stick.mood = "idle"
+	_present_photo(day_photo, Game.illustration_path(), true)
 	_type_into(day_text, Game.setup_text())
 	_apply_choice_button(choice_a, "a")
 	_apply_choice_button(choice_b, "b")
@@ -568,13 +609,7 @@ func _show_reveal(reveal: Dictionary) -> void:
 		delta_box.add_child(chip)
 		_pop(chip)
 	_refresh_stats()
-	var scene_now := str(reveal.get("scene", "quiet"))
-	var mood_now := "bad" if bool(reveal.get("bad", false)) else "good"
-	stick.scene_name = scene_now
-	stick.mood = mood_now
-	if reveal_stick:
-		reveal_stick.scene_name = scene_now
-		reveal_stick.mood = mood_now
+	_present_photo(reveal_photo, str(reveal.get("image", Game.illustration_path())), true)
 	if bool(reveal.get("dead", false)):
 		next_button.text = "Это конец"
 		Sfx.play("bad")
@@ -609,24 +644,30 @@ func _on_next() -> void:
 func _show_end() -> void:
 	var won := Game.won
 	end_kicker.text = "СЕРИЯ ЗАКРЫТА" if won else "СЕРИЯ ОБОРВАЛАСЬ"
-	end_kicker.add_theme_color_override("font_color", MOSS if won else BLOOD)
+	end_kicker.add_theme_color_override("font_color", INK if won else BLOOD)
 	end_day.text = "%02d" % Game.day
-	end_day.add_theme_color_override("font_color", MOSS if won else PAPER)
+	end_day.add_theme_color_override("font_color", INK if won else BLOOD)
 	end_title.text = Game.ending_title
+	end_title.add_theme_color_override("font_color", INK if won else BLOOD)
 	end_line.text = Game.ending_line
+	if end_rule:
+		end_rule.color = INK if won else BLOOD
 	for child in end_bits.get_children():
 		child.queue_free()
 	for bit in Game.epitaphs(4):
-		end_bits.add_child(_label(bit, 22, AMBER, body, HORIZONTAL_ALIGNMENT_CENTER))
+		end_bits.add_child(_label(bit, 24, INK, body, HORIZONTAL_ALIGNMENT_CENTER))
 	for child in end_stats.get_children():
 		child.queue_free()
 	for id in Game.STAT_ORDER:
-		end_stats.add_child(_label("%s %d" % [Game.stat_label(id), int(Game.stats.get(id, 0))], 20, PAPER, body, HORIZONTAL_ALIGNMENT_CENTER))
+		var value := int(Game.stats.get(id, 0))
+		end_stats.add_child(_label("%s %d" % [Game.stat_label(id), value], 22, BLOOD if value <= 1 else INK, body, HORIZONTAL_ALIGNMENT_CENTER))
 	end_seed.text = "зерно %d  ·  день %d из %d" % [Game.seed_value, Game.day, Game.days_to_win]
-	var end_stick: Control = screens["end"].find_child("EndStick", true, false)
-	if end_stick:
-		end_stick.scene_name = "win" if won else "death"
-		end_stick.mood = "good" if won else "bad"
+	var photo := "res://art/hero.webp" if won else str(Game.last_reveal.get("image", "res://art/hero.webp"))
+	_present_photo(end_photo, photo, true)
+	if end_mark:
+		end_mark.text = "V" if won else "X"
+		end_mark.add_theme_color_override("font_color", BLOOD)
+		end_mark.modulate.a = 0.82
 	if won:
 		Sfx.play("win")
 	else:
@@ -673,6 +714,29 @@ func _run_shots() -> void:
 	await get_tree().create_timer(0.35).timeout
 	await _shot("05-win")
 	get_tree().quit()
+
+
+func _maybe_web_card() -> void:
+	if not OS.has_feature("web"):
+		return
+	var query := str(JavaScriptBridge.eval("window.location.search", true))
+	var won := "card=win" in query
+	if "card=death" not in query and not won:
+		return
+	await get_tree().process_frame
+	Game.start_run(7)
+	Game.run_over = true
+	Game.won = won
+	Game.day = 30 if won else 14
+	if won:
+		Game.ending_title = str(Game.meta.get("win_title", "Дверь осталась при тебе"))
+		Game.ending_line = str(Game.meta.get("win_line", ""))
+	else:
+		Game.ending_title = "Тебя съели на пороге"
+		Game.ending_line = "Он сказал, что он из ЖЭКа. ЖЭК теперь с зубами."
+	Game.stats = {"food": 0, "health": 0, "sanity": 2, "ammo": 1} if not won else {"food": 4, "health": 3, "sanity": 2, "ammo": 1}
+	Game.last_reveal = {"image": "res://art/scenes/door.webp"}
+	_show_end()
 
 
 func _shot(shot_name: String) -> void:

@@ -70,7 +70,8 @@
 | Поле | Зачем |
 | --- | --- |
 | `id` | Уникальная строка. |
-| `scene` | Сценка: `door`, `open`, `basement`, `window`, `stranger`, `radio`, `dog`, `street`, `mirror`, `kid`, `horde`, `gun`, `letter`, `food`, `cult`, `soldier`, `quiet`. Неизвестное имя рисуется как тихий день. |
+| `scene` | Сценка. Картинка по умолчанию — `res://art/scenes/<scene>.webp`. Сейчас есть: `door`, `open`, `basement`, `window`, `stranger`, `radio`, `dog`, `street`, `mirror`, `kid`, `horde`, `letter`, `food`, `cult`, `soldier`, `quiet`. |
+| `image` | Необязательный путь картинки относительно `res://art/`, без расширения. Пример: `scenes/door` или `hero`. Если файла нет, игра берёт картинку сцены, потом `hero.webp`. |
 | `setup` | Текст дня. Можно подставить `{day}`, `{food}`, `{health}`, `{sanity}`, `{ammo}`. |
 | `once` | `true` по умолчанию. `false` — событие может повторяться. |
 | `weight` | Вес в случайном выборе. |
@@ -131,6 +132,8 @@
 ```
 
 Дальше событие с `"when": { "flags_all": ["basement_shut"] }` увидит только тех, кто заколотил люк.
+
+Новые рисунки клади в `door/art/` уже сжатыми (примерно 768 px, WebP quality 80) и укажи путь в `image`. Имя без папки `art/` и без `.webp`. Поле есть и в доке «События», и на экране «Править события».
 
 ## Как добавить событие
 
