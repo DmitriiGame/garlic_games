@@ -7,7 +7,12 @@ var dock: Control
 func _enter_tree() -> void:
 	dock = preload("res://addons/event_editor/dock.gd").new()
 	dock.name = "События"
-	add_control_to_dock(DOCK_SLOT_RIGHT_UL, dock)
+	call_deferred("_mount_dock")
+
+
+func _mount_dock() -> void:
+	if dock and is_inside_tree():
+		add_control_to_dock(DOCK_SLOT_RIGHT_UL, dock)
 
 
 func _exit_tree() -> void:

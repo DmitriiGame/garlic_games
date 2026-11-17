@@ -235,6 +235,7 @@ func choose(which: String) -> Dictionary:
 		"event_id": event_id,
 		"choice": which,
 		"scene": str(event.get("scene", "quiet")),
+		"image": illustration_path(event),
 	}
 	return last_reveal
 
@@ -245,6 +246,28 @@ func setup_text() -> String:
 
 func scene_id() -> String:
 	return str(pending.get("scene", "quiet"))
+
+
+func illustration_path(event: Dictionary = {}) -> String:
+	var source: Dictionary = event if not event.is_empty() else pending
+	var named := str(source.get("image", "")).strip_edges().replace("\\", "/")
+	named = named.trim_prefix("res://art/").trim_prefix("res://")
+	if named == "":
+		named = "scenes/%s" % str(source.get("scene", "quiet"))
+	for ext in [".webp", ".jpg", ".jpeg", ".png"]:
+		if named.ends_with(ext):
+			named = named.trim_suffix(ext)
+	var path := "res://art/%s.webp" % named
+	if _resource_exists(path):
+		return path
+	var by_scene := "res://art/scenes/%s.webp" % str(source.get("scene", "quiet"))
+	if _resource_exists(by_scene):
+		return by_scene
+	return "res://art/hero.webp"
+
+
+func _resource_exists(path: String) -> bool:
+	return ResourceLoader.exists(path) or FileAccess.file_exists(path)
 
 
 func eligible_ids() -> Array[String]:
