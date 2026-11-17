@@ -11,6 +11,17 @@ float hash21(vec2 p) {
 	return fract(p.x * p.y);
 }
 
+float vnoise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	float a = hash21(i);
+	float b = hash21(i + vec2(1.0, 0.0));
+	float c = hash21(i + vec2(0.0, 1.0));
+	float d = hash21(i + vec2(1.0, 1.0));
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
 float grid_line(vec2 p, float step) {
 	vec2 g = abs(fract(p / step) - 0.5);
 	float d = min(g.x, g.y) * step;
@@ -26,39 +37,36 @@ void fragment() {
 	vec2 p = FRAGCOORD.xy;
 	vec2 uv = UV;
 
-	float grain = hash21(floor(p * 0.85));
-	float fiber = hash21(vec2(floor(p.y * 2.4), floor(p.x * 0.15)));
-	fiber = smoothstep(0.62, 0.96, fiber);
+	float grain = vnoise(p * 0.35);
+	float fiber = vnoise(vec2(p.x * 0.02, p.y * 0.55));
 	float wave = sin(p.y * 0.028 + sin(p.x * 0.007) * 2.6);
-	float damp = smoothstep(-0.2, 0.85, wave);
+	float damp = smoothstep(-0.15, 0.9, wave);
 
-	vec3 col = mix(paper_shade, paper_light, 0.35 + 0.4 * damp);
-	col *= 0.94 + 0.08 * grain;
-	col = mix(col, col * vec3(0.9, 0.93, 0.86), fiber * 0.35);
-	col = mix(col, col * vec3(0.86, 0.88, 0.78), damp * 0.12);
+	vec3 col = mix(paper_shade, paper_light, 0.4 + 0.35 * damp);
+	col *= 0.96 + 0.05 * grain;
+	col = mix(col, col * vec3(0.93, 0.95, 0.9), fiber * 0.22);
+	col = mix(col, col * vec3(0.9, 0.91, 0.84), damp * 0.08);
 
-	float stain = blob(uv, vec2(0.12, 0.86), vec2(1.1, 1.5), 0.16);
-	stain += blob(uv, vec2(0.78, 0.18), vec2(1.4, 1.0), 0.11) * 0.7;
-	stain += blob(uv, vec2(0.62, 0.72), vec2(1.8, 2.2), 0.07) * 0.45;
-	col = mix(col, col * vec3(0.78, 0.74, 0.58), clamp(stain, 0.0, 1.0) * 0.45);
+	float stain = blob(uv, vec2(0.14, 0.88), vec2(1.1, 1.45), 0.18);
+	stain += blob(uv, vec2(0.8, 0.16), vec2(1.35, 1.05), 0.12) * 0.65;
+	col = mix(col, col * vec3(0.84, 0.8, 0.68), clamp(stain, 0.0, 1.0) * 0.28);
 
-	float print = blob(uv, vec2(0.22, 0.42), vec2(2.4, 1.1), 0.09);
-	print += blob(uv, vec2(0.84, 0.58), vec2(2.2, 1.2), 0.08) * 0.8;
-	float print_grain = hash21(floor(p * 0.35));
-	col = mix(col, col * vec3(0.82, 0.84, 0.76), print * print_grain * 0.28);
+	float print = blob(uv, vec2(0.24, 0.46), vec2(2.2, 1.15), 0.1);
+	print += blob(uv, vec2(0.82, 0.6), vec2(2.0, 1.2), 0.09) * 0.7;
+	col = mix(col, col * vec3(0.88, 0.9, 0.84), print * 0.16);
 
-	float dent = smoothstep(0.86, 0.98, hash21(floor(p / 17.0)));
-	col *= 1.0 - dent * 0.07;
+	float dent = vnoise(p * 0.08);
+	col *= 1.0 - smoothstep(0.72, 0.95, dent) * 0.04;
 
 	float minor = grid_line(p, 22.0);
 	float major = grid_line(p, 88.0);
-	float grid = max(minor * 0.55, major);
-	col = mix(col, ink, grid * 0.16);
+	float grid = max(minor * 0.5, major * 0.85);
+	col = mix(col, ink, grid * 0.14);
 
 	vec2 q = uv * 2.0 - 1.0;
-	float vig = smoothstep(0.2, 1.15, length(q * vec2(0.72, 1.05)));
-	col = mix(col, col * flashlight, vig * 0.55);
-	col *= mix(1.0, 0.72, vig);
+	float vig = smoothstep(0.22, 1.15, length(q * vec2(0.72, 1.05)));
+	col = mix(col, col * flashlight, vig * 0.5);
+	col *= mix(1.0, 0.76, vig);
 
 	COLOR = vec4(col, 1.0);
 }

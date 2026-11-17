@@ -152,7 +152,9 @@ godot --headless --path door -s res://scripts/sim.gd
 
 Скрипт гоняет осторожные, случайные и безрассудные забеги, проверяет цепочки флагов и смерть от «хора». Ненулевой код — правила сломались.
 
-Звуки синтезированы для игры и отданы как CC0, список в `door/audio/CREDITS.md`. Громкость — ползунок на титре, кнопка «Звук» выключает всё. В браузере звук начинается с первого нажатия. Пересобрать: `python3 door/tools/make_sfx.py`.
+Звуки — записи CC0 (Kenney и OpenGameArt), список с авторами и ссылками в `door/audio/CREDITS.md`. Громкость — ползунок на титре, кнопка «Звук» выключает всё. В браузере звук начинается с первого нажатия.
+
+Патроны встречаются в обычном забеге, не только в конце. Отдельные события: `stair_zombie`, `marauders`, `mailbox_rounds`, `trader_shells`, `peephole_shot`, `basement_lurker`, `horde_warning`, `window_scare`, `soldier_box`, `landing_shot`, `kid_shells`, `radio_belt`. В них патроны тратят, находят или меняют. Цвета палитры — в `door/scripts/door_theme.gd`.
 
 ## Веб
 

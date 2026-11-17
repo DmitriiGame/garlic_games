@@ -453,10 +453,10 @@ func _stat_row() -> HBoxContainer:
 		var cell := VBoxContainer.new()
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.alignment = BoxContainer.ALIGNMENT_CENTER
-		var number := _label("0", 40, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
+		var number := _label("0", 58, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
 		stat_numbers[id] = number
 		cell.add_child(number)
-		var name := _label(Game.stat_label(id), 20, INK, body, HORIZONTAL_ALIGNMENT_CENTER)
+		var name := _label(Game.stat_label(id), 30, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
 		cell.add_child(name)
 		row.add_child(cell)
 	return row
@@ -719,7 +719,7 @@ func _show_end() -> void:
 		child.queue_free()
 	for id in Game.STAT_ORDER:
 		var value := int(Game.stats.get(id, 0))
-		end_stats.add_child(_label("%s %d" % [Game.stat_label(id), value], 22, BLOOD if value <= 1 else INK, body, HORIZONTAL_ALIGNMENT_CENTER))
+		end_stats.add_child(_label("%s %d" % [Game.stat_label(id), value], 28, BLOOD if value <= 1 else INK, display, HORIZONTAL_ALIGNMENT_CENTER))
 	end_seed.text = "зерно %d  ·  день %d из %d" % [Game.seed_value, Game.day, Game.days_to_win]
 	var photo := "res://art/hero.webp" if won else str(Game.last_reveal.get("image", "res://art/hero.webp"))
 	_present_photo(end_photo, photo, true)
