@@ -1,18 +1,19 @@
 extends Control
 ## Портретный интерфейс: титр, день, раскрытие, карточка конца, правка текстов.
 
-const DESK := Color("e6d7bc")
-const INK := Color("1c3268")
-const PAPER := Color("f7f3ea")
-const MUTED := Color("5c6d90")
-const BLOOD := Color("c43737")
-const MOSS := Color("1c3268")
-const AMBER := Color("c43737")
+const Palette := preload("res://scripts/door_theme.gd")
+const DESK := Palette.DESK
+const INK := Palette.INK
+const PAPER := Palette.PAPER_ON_INK
+const MUTED := Palette.MUTED
+const BLOOD := Palette.MARKER
+const MOSS := Palette.INK
+const AMBER := Palette.MARKER
 
 var display: Font
 var body: Font
 var column: Control
-var shake_host: Control
+var page_host: Control
 var screens: Dictionary = {}
 var current: Control
 var day_photo: TextureRect
@@ -42,7 +43,9 @@ var mute_buttons: Array[Button] = []
 var stat_numbers: Dictionary = {}
 var type_label: RichTextLabel
 var type_left: int = 0
-var shake: float = 0.0
+var wash: ColorRect
+var stat_shown: Dictionary = {}
+var stat_tweens: Dictionary = {}
 var editor: Control
 var shot_mode: bool = false
 
@@ -73,19 +76,6 @@ func _process(delta: float) -> void:
 		type_left = maxi(0, type_left - step)
 		var total := maxi(type_label.get_total_character_count(), type_label.text.length())
 		type_label.visible_characters = maxi(0, total - type_left)
-	if shake > 0.5:
-		var kick := shake
-		shake_host.offset_left = randf_range(-kick, kick)
-		shake_host.offset_top = randf_range(-kick, kick)
-		shake_host.offset_right = shake_host.offset_left
-		shake_host.offset_bottom = shake_host.offset_top
-		shake = lerpf(shake, 0.0, 1.0 - pow(0.04, delta))
-	elif shake_host.offset_left != 0.0:
-		shake = 0.0
-		shake_host.offset_left = 0
-		shake_host.offset_top = 0
-		shake_host.offset_right = 0
-		shake_host.offset_bottom = 0
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -130,10 +120,10 @@ func _build() -> void:
 	paper.set_anchors_preset(Control.PRESET_FULL_RECT)
 	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(paper)
-	shake_host = Control.new()
-	shake_host.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shake_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(shake_host)
+	page_host = Control.new()
+	page_host.set_anchors_preset(Control.PRESET_FULL_RECT)
+	page_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(page_host)
 
 	screens.title = _build_title()
 	screens.day = _build_day()
@@ -143,7 +133,13 @@ func _build() -> void:
 	editor.set_anchors_preset(Control.PRESET_FULL_RECT)
 	editor.visible = false
 	editor.setup(func() -> void: _show_screen(screens.title))
-	shake_host.add_child(editor)
+	page_host.add_child(editor)
+	wash = ColorRect.new()
+	wash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wash.color = Palette.MARKER
+	wash.modulate.a = 0.0
+	page_host.add_child(wash)
 	screens.editor = editor
 	for key in ["title", "day", "reveal", "end"]:
 		screens[key].visible = false
@@ -185,6 +181,7 @@ func _build_title() -> Control:
 	mute.pressed.connect(_on_mute)
 	mute_buttons.append(mute)
 	box.add_child(mute)
+	box.add_child(_volume_row())
 	_refresh_mute()
 	return screen
 
@@ -204,7 +201,7 @@ func _build_day() -> Control:
 	top.add_child(mute)
 	box.add_child(top)
 	box.add_child(_stat_row())
-	day_hint = _label("", 22, MUTED, body, HORIZONTAL_ALIGNMENT_LEFT)
+	day_hint = _label("", 22, INK, body, HORIZONTAL_ALIGNMENT_LEFT)
 	day_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(day_hint)
 	var art := _art_host(420)
@@ -304,11 +301,11 @@ func _build_end() -> Control:
 func _screen() -> Control:
 	var screen := MarginContainer.new()
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
-	screen.add_theme_constant_override("margin_left", 62)
+	screen.add_theme_constant_override("margin_left", 28)
 	screen.add_theme_constant_override("margin_right", 28)
 	screen.add_theme_constant_override("margin_top", 22)
 	screen.add_theme_constant_override("margin_bottom", 18)
-	shake_host.add_child(screen)
+	page_host.add_child(screen)
 	return screen
 
 
@@ -326,7 +323,7 @@ func _art_host(min_h: float) -> Control:
 	host.custom_minimum_size = Vector2(0, min_h)
 	host.clip_contents = true
 	var style := StyleBoxFlat.new()
-	style.bg_color = PAPER
+	style.bg_color = Color(Palette.PAPER.r, Palette.PAPER.g, Palette.PAPER.b, 0.0)
 	style.set_border_width_all(3)
 	style.border_color = INK
 	style.set_corner_radius_all(6)
@@ -343,6 +340,11 @@ func _photo_in(host: Control) -> TextureRect:
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/ink_photo.gdshader")
+	mat.set_shader_parameter("ink", Palette.INK)
+	mat.set_shader_parameter("marker", Palette.MARKER)
+	rect.material = mat
 	host.add_child(rect)
 	return rect
 
@@ -366,13 +368,13 @@ func _present_photo(rect: TextureRect, path: String, motion: bool) -> void:
 		rect.pivot_offset = Vector2(180, 160)
 	if changed:
 		rect.modulate.a = 0.0
-		rect.position = Vector2(randf_range(-26, 26), 14)
-		rect.rotation_degrees = randf_range(-2.4, 2.4)
+		rect.position = Vector2(randf_range(-8, 8), 6)
+		rect.rotation_degrees = randf_range(-0.8, 0.8)
 	var tween := create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(rect, "modulate:a", 1.0, 0.28)
-	tween.tween_property(rect, "position", Vector2.ZERO, 0.34).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(rect, "rotation_degrees", randf_range(-0.35, 0.35), 0.34)
+	tween.tween_property(rect, "modulate:a", 1.0, 0.32).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(rect, "position", Vector2.ZERO, 0.36).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(rect, "rotation_degrees", 0.0, 0.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _label(text: String, size: int, color: Color, font: Font, align: HorizontalAlignment) -> Label:
@@ -433,7 +435,7 @@ func _button_style(primary: bool, hot: bool) -> StyleBoxFlat:
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
 	if primary:
-		style.bg_color = Color("16306a") if hot else INK
+		style.bg_color = Palette.INK_DEEP if hot else INK
 		style.set_border_width_all(3)
 		style.border_color = INK
 	else:
@@ -454,32 +456,90 @@ func _stat_row() -> HBoxContainer:
 		var number := _label("0", 40, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
 		stat_numbers[id] = number
 		cell.add_child(number)
-		var name := _label(Game.stat_label(id), 20, MUTED, body, HORIZONTAL_ALIGNMENT_CENTER)
+		var name := _label(Game.stat_label(id), 20, INK, body, HORIZONTAL_ALIGNMENT_CENTER)
 		cell.add_child(name)
 		row.add_child(cell)
 	return row
 
 
-func _refresh_stats(pop_id: String = "") -> void:
+func _volume_row() -> Control:
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	row.add_child(_label("громкость", 20, MUTED, body, HORIZONTAL_ALIGNMENT_CENTER))
+	var slider := HSlider.new()
+	slider.min_value = 0
+	slider.max_value = 100
+	slider.step = 1
+	slider.value = Sfx.volume * 100.0
+	slider.custom_minimum_size = Vector2(0, 44)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.value_changed.connect(func(value: float) -> void:
+		Sfx.note_input()
+		Sfx.set_volume(value / 100.0)
+	)
+	slider.drag_ended.connect(func(_changed: bool) -> void:
+		Sfx.note_input()
+		Sfx.play("ui/tap", -6.0)
+	)
+	row.add_child(slider)
+	return row
+
+
+func _tint_stat(number: Label, value: int) -> void:
+	number.add_theme_color_override("font_color", BLOOD if value <= 1 else INK)
+
+
+func _refresh_stats(animate: bool = false) -> void:
 	for id in Game.STAT_ORDER:
 		var value := int(Game.stats.get(id, 0))
 		var number: Label = stat_numbers[id]
-		number.text = str(value)
-		if value <= 0:
-			number.add_theme_color_override("font_color", BLOOD)
-		elif value == 1:
-			number.add_theme_color_override("font_color", BLOOD)
-		else:
-			number.add_theme_color_override("font_color", INK)
-		if id == pop_id:
-			_pop(number)
+		var previous := int(stat_shown.get(id, value))
+		stat_shown[id] = value
+		if stat_tweens.has(id) and stat_tweens[id] != null:
+			(stat_tweens[id] as Tween).kill()
+		if not animate or previous == value:
+			number.text = str(value)
+			_tint_stat(number, value)
+			continue
+		var tween := create_tween()
+		stat_tweens[id] = tween
+		tween.tween_method(func(shown: float) -> void:
+			var current := int(round(shown))
+			number.text = str(current)
+			_tint_stat(number, current)
+		, float(previous), float(value), 0.32).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		number.pivot_offset = number.size * 0.5
+		var settle := create_tween()
+		settle.tween_property(number, "scale", Vector2(1.06, 1.06), 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		settle.tween_property(number, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _soft_reaction(bad: bool, leaf: TextureRect = null) -> void:
+	if leaf == null:
+		leaf = reveal_photo if reveal_photo != null else day_photo
+	if leaf != null:
+		leaf.pivot_offset = leaf.size * 0.5 if leaf.size != Vector2.ZERO else Vector2(180, 140)
+		var tilt := 0.7 if bad else 0.3
+		var sway := create_tween()
+		sway.tween_property(leaf, "rotation_degrees", tilt, 0.18).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		sway.tween_property(leaf, "rotation_degrees", -tilt * 0.45, 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		sway.tween_property(leaf, "rotation_degrees", 0.0, 0.24).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	if not bad or wash == null:
+		return
+	wash.modulate.a = 0.0
+	var fade := create_tween()
+	fade.tween_property(wash, "modulate:a", 0.08, 0.24).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	fade.tween_property(wash, "modulate:a", 0.0, 0.42).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _pop(node: Control) -> void:
+	node.modulate.a = 0.0
 	node.pivot_offset = node.size * 0.5
 	var tween := create_tween()
-	tween.tween_property(node, "scale", Vector2(1.28, 1.28), 0.08)
-	tween.tween_property(node, "scale", Vector2.ONE, 0.12)
+	tween.set_parallel(true)
+	tween.tween_property(node, "modulate:a", 1.0, 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(node, "scale", Vector2(1.04, 1.04), 0.16).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.chain().tween_property(node, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _show_screen(screen: Control) -> void:
@@ -519,9 +579,10 @@ func _skip_type() -> void:
 
 
 func _on_mute() -> void:
+	Sfx.note_input()
 	Sfx.toggle_mute()
 	_refresh_mute()
-	Sfx.play("tap")
+	Sfx.play("ui/tap", -6.0)
 
 
 func _refresh_mute() -> void:
@@ -531,19 +592,22 @@ func _refresh_mute() -> void:
 
 
 func _on_start() -> void:
-	Sfx.play("tap")
+	Sfx.note_input()
+	Sfx.play("ui/tap", -6.0)
 	Game.start_run()
 	_show_day()
 
 
 func _on_same_seed() -> void:
-	Sfx.play("tap")
+	Sfx.note_input()
+	Sfx.play("ui/tap", -6.0)
 	Game.start_run(Game.seed_value)
 	_show_day()
 
 
 func _open_editor() -> void:
-	Sfx.play("tap")
+	Sfx.note_input()
+	Sfx.play("ui/tap", -6.0)
 	editor.reload()
 	_show_screen(screens.editor)
 
@@ -551,17 +615,14 @@ func _open_editor() -> void:
 func _show_day() -> void:
 	day_title.text = "ДЕНЬ %02d" % Game.day
 	day_hint.text = Game.night_hint()
-	_refresh_stats()
+	_refresh_stats(false)
 	_refresh_mute()
 	_present_photo(day_photo, Game.illustration_path(), true)
 	_type_into(day_text, Game.setup_text())
 	_apply_choice_button(choice_a, "a")
 	_apply_choice_button(choice_b, "b")
-	var scene_id := Game.scene_id()
-	if scene_id in ["door", "letter", "cult", "soldier", "kid", "open"]:
-		Sfx.play("knock")
-	else:
-		Sfx.play("whoosh")
+	Sfx.play("ui/page", -10.0)
+	Sfx.play(Game.sound_key(), -4.0)
 	_show_screen(screens.day)
 
 
@@ -582,7 +643,8 @@ func _on_choice(which: String) -> void:
 	if button.disabled:
 		return
 	_skip_type()
-	Sfx.play("tap")
+	Sfx.note_input()
+	Sfx.play("ui/pen", -4.0)
 	var reveal: Dictionary = Game.choose(which)
 	_show_reveal(reveal)
 
@@ -608,33 +670,30 @@ func _show_reveal(reveal: Dictionary) -> void:
 		chip.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 		delta_box.add_child(chip)
 		_pop(chip)
-	_refresh_stats()
+	_refresh_stats(true)
 	_present_photo(reveal_photo, str(reveal.get("image", Game.illustration_path())), true)
+	var bad := bool(reveal.get("bad", false)) or bool(reveal.get("dead", false))
+	_soft_reaction(bad)
 	if bool(reveal.get("dead", false)):
 		next_button.text = "Это конец"
-		Sfx.play("bad")
-		_bump_shake(16)
+		Sfx.play("ui/bad", -2.0)
 	elif bool(reveal.get("won", false)):
 		next_button.text = "Итог"
-		Sfx.play("good")
-	elif bool(reveal.get("bad", false)):
+		Sfx.play("ui/good", -2.0)
+	elif bad:
 		next_button.text = "Дальше"
-		Sfx.play("bad")
-		_bump_shake(12)
+		Sfx.play("ui/bad", -2.0)
 	else:
 		next_button.text = "Дальше"
-		Sfx.play("good")
+		Sfx.play("ui/good", -2.0)
 	_show_screen(screens.reveal)
-
-
-func _bump_shake(amount: float) -> void:
-	shake = maxf(shake, amount)
 
 
 func _on_next() -> void:
 	if current != screens.reveal:
 		return
-	Sfx.play("tap")
+	Sfx.note_input()
+	Sfx.play("ui/tap", -8.0)
 	if Game.run_over:
 		_show_end()
 	else:
@@ -666,13 +725,15 @@ func _show_end() -> void:
 	_present_photo(end_photo, photo, true)
 	if end_mark:
 		end_mark.text = "V" if won else "X"
-		end_mark.add_theme_color_override("font_color", BLOOD)
-		end_mark.modulate.a = 0.82
+		end_mark.add_theme_color_override("font_color", BLOOD if not won else INK)
+		end_mark.modulate.a = 0.0
+		var ink := create_tween()
+		ink.tween_property(end_mark, "modulate:a", 0.55, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_soft_reaction(not won, end_photo)
 	if won:
-		Sfx.play("win")
+		Sfx.play("ui/win", -2.0)
 	else:
-		Sfx.play("death")
-		_bump_shake(18)
+		Sfx.play("ui/death", -2.0)
 	_show_screen(screens["end"])
 
 

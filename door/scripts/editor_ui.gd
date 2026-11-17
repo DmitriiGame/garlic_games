@@ -9,14 +9,16 @@ var list: ItemList
 var status: Label
 var setup_edit: TextEdit
 var image_edit: LineEdit
+var sound_edit: LineEdit
 var fields: Dictionary = {}
 var roll_note: Label
 var lock := false
 
-const PAPER := Color("f7f3ea")
-const MUTED := Color("3d4e78")
-const AMBER := Color("1c3268")
-const INK := Color("f7f3ea")
+const Palette := preload("res://scripts/door_theme.gd")
+const PAPER := Palette.PAPER
+const MUTED := Palette.MUTED
+const AMBER := Palette.INK
+const INK := Palette.PAPER_ON_INK
 const STATS: Array[String] = ["food", "health", "sanity", "ammo"]
 
 
@@ -87,6 +89,11 @@ func _build() -> void:
 	image_edit.custom_minimum_size = Vector2(0, 52)
 	image_edit.add_theme_font_size_override("font_size", 22)
 	box.add_child(image_edit)
+	sound_edit = LineEdit.new()
+	sound_edit.placeholder_text = "звук: пусто = scenes/<сцена>"
+	sound_edit.custom_minimum_size = Vector2(0, 52)
+	sound_edit.add_theme_font_size_override("font_size", 22)
+	box.add_child(sound_edit)
 
 	for which in ["a", "b"]:
 		var title := "Выбор А" if which == "a" else "Выбор Б"
@@ -174,6 +181,7 @@ func _load_selected() -> void:
 	var ev := _current()
 	setup_edit.text = str(ev.get("setup", ""))
 	image_edit.text = str(ev.get("image", ""))
+	sound_edit.text = str(ev.get("sound", ""))
 	for which in ["a", "b"]:
 		var branch: Dictionary = ev.get(which, {})
 		fields[which]["label"].text = str(branch.get("label", ""))
@@ -199,6 +207,11 @@ func _store_selected() -> void:
 		ev.erase("image")
 	else:
 		ev["image"] = picture
+	var clip := sound_edit.text.strip_edges()
+	if clip == "":
+		ev.erase("sound")
+	else:
+		ev["sound"] = clip
 	for which in ["a", "b"]:
 		if typeof(ev.get(which)) != TYPE_DICTIONARY:
 			ev[which] = {}

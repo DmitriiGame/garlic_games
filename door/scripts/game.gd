@@ -248,6 +248,21 @@ func scene_id() -> String:
 	return str(pending.get("scene", "quiet"))
 
 
+func sound_key(event: Dictionary = {}) -> String:
+	var source: Dictionary = event if not event.is_empty() else pending
+	var named := str(source.get("sound", "")).strip_edges().replace("\\", "/")
+	named = named.trim_prefix("res://audio/").trim_prefix("res://")
+	for ext in [".ogg", ".wav"]:
+		if named.ends_with(ext):
+			named = named.trim_suffix(ext)
+	if named == "":
+		named = "scenes/%s" % str(source.get("scene", "quiet"))
+	var path := "res://audio/%s.ogg" % named
+	if ResourceLoader.exists(path) or FileAccess.file_exists(path):
+		return named
+	return "scenes/%s" % str(source.get("scene", "quiet"))
+
+
 func illustration_path(event: Dictionary = {}) -> String:
 	var source: Dictionary = event if not event.is_empty() else pending
 	var named := str(source.get("image", "")).strip_edges().replace("\\", "/")
