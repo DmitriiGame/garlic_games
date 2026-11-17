@@ -16,8 +16,10 @@ var sound_edit: LineEdit
 var weight_spin: SpinBox
 var min_spin: SpinBox
 var max_spin: SpinBox
+var chapter_spin: SpinBox
 var once_box: CheckBox
 var priority_box: CheckBox
+var highlight_box: CheckBox
 var flags_all: LineEdit
 var flags_none: LineEdit
 var setup_edit: TextEdit
@@ -80,12 +82,20 @@ func _ready() -> void:
 	row.add_child(_caption("по день"))
 	row.add_child(max_spin)
 	box.add_child(row)
+	var chapter_row := HBoxContainer.new()
+	chapter_spin = _spin(1, 3)
+	chapter_row.add_child(_caption("глава"))
+	chapter_row.add_child(chapter_spin)
+	box.add_child(chapter_row)
 	once_box = CheckBox.new()
 	once_box.text = "один раз за забег"
 	priority_box = CheckBox.new()
 	priority_box.text = "приоритет, если подошло по дню"
+	highlight_box = CheckBox.new()
+	highlight_box.text = "изюминка: рамка, штамп, другой звук"
 	box.add_child(once_box)
 	box.add_child(priority_box)
+	box.add_child(highlight_box)
 	flags_all = _line(box, "нужные флаги через запятую")
 	flags_none = _line(box, "запретные флаги через запятую")
 	setup_edit = _area(box, "Ситуация", 90)
@@ -166,7 +176,10 @@ func _refresh_list() -> void:
 	lock = true
 	list.clear()
 	for ev in data["events"]:
-		list.add_item(str(ev.get("id", "?")) if typeof(ev) == TYPE_DICTIONARY else "?")
+		var title := "?"
+		if typeof(ev) == TYPE_DICTIONARY:
+			title = "%d · %s" % [int(ev.get("chapter", 1)), str(ev.get("id", "?"))]
+		list.add_item(title)
 	if data["events"].is_empty():
 		index = -1
 		lock = false
@@ -195,7 +208,9 @@ func _load_form() -> void:
 	weight_spin.value = int(ev.get("weight", 1))
 	once_box.button_pressed = bool(ev.get("once", true))
 	priority_box.button_pressed = bool(ev.get("priority", false))
+	highlight_box.button_pressed = bool(ev.get("highlight", false))
 	var when: Dictionary = ev.get("when", {})
+	chapter_spin.value = int(ev.get("chapter", when.get("chapter", 1)))
 	min_spin.value = int(when.get("min_day", 1))
 	max_spin.value = int(when.get("max_day", 30))
 	flags_all.text = _join(when.get("flags_all", []))
@@ -239,11 +254,17 @@ func _apply_form() -> void:
 		ev["sound"] = clip
 	ev["weight"] = int(weight_spin.value)
 	ev["once"] = once_box.button_pressed
+	ev["chapter"] = int(chapter_spin.value)
 	if priority_box.button_pressed:
 		ev["priority"] = true
 	else:
 		ev.erase("priority")
+	if highlight_box.button_pressed:
+		ev["highlight"] = true
+	else:
+		ev.erase("highlight")
 	var when: Dictionary = ev.get("when", {})
+	when["chapter"] = int(chapter_spin.value)
 	when["min_day"] = int(min_spin.value)
 	when["max_day"] = int(max_spin.value)
 	_put_list(when, "flags_all", flags_all.text)
@@ -276,7 +297,7 @@ func _apply_form() -> void:
 			else:
 				branch["effects"] = effects
 	if index >= 0 and index < list.item_count:
-		list.set_item_text(index, new_id)
+		list.set_item_text(index, "%d · %s" % [int(chapter_spin.value), new_id])
 	raw_edit.text = JSON.stringify(ev, "\t")
 
 
@@ -354,10 +375,11 @@ func _delete() -> void:
 func _template(id: String) -> Dictionary:
 	return {
 		"id": id,
+		"chapter": 1,
 		"once": true,
 		"weight": 1,
 		"scene": "door",
-		"when": {"min_day": 1, "max_day": 30},
+		"when": {"chapter": 1, "min_day": 1, "max_day": 30},
 		"setup": "Новая ситуация.",
 		"a": {"label": "Да", "text": "Ты согласился.", "effects": {"sanity": -1}},
 		"b": {"label": "Нет", "text": "Ты отказался.", "effects": {"sanity": 1}},

@@ -17,6 +17,10 @@ var page_host: Control
 var screens: Dictionary = {}
 var current: Control
 var day_photo: TextureRect
+var day_art: Panel
+var reveal_art: Panel
+var day_stamp: Label
+var reveal_stamp: Label
 var day_title: Label
 var day_text: RichTextLabel
 var day_hint: Label
@@ -38,7 +42,16 @@ var end_bits: VBoxContainer
 var end_stats: HBoxContainer
 var end_seed: Label
 var end_again: Button
+var end_fresh: Button
 var end_same: Button
+var continue_button: Button
+var chapter_kicker: Label
+var chapter_number: Label
+var chapter_name: Label
+var chapter_line: Label
+var chapter_stats: HBoxContainer
+var chapter_bits: VBoxContainer
+var chapter_next: Button
 var mute_buttons: Array[Button] = []
 var stat_numbers: Dictionary = {}
 var type_label: RichTextLabel
@@ -98,6 +111,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_on_choice("b")
 	elif current == screens.reveal and (key.keycode == KEY_SPACE or key.keycode == KEY_ENTER):
 		_on_next()
+	elif current == screens.chapter and (key.keycode == KEY_SPACE or key.keycode == KEY_ENTER):
+		_on_chapter_next()
 	elif current == screens.title and (key.keycode == KEY_ENTER or key.keycode == KEY_SPACE):
 		_on_start()
 
@@ -128,6 +143,7 @@ func _build() -> void:
 	screens.title = _build_title()
 	screens.day = _build_day()
 	screens.reveal = _build_reveal()
+	screens.chapter = _build_chapter()
 	screens["end"] = _build_end()
 	editor = preload("res://scripts/editor_ui.gd").new()
 	editor.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -141,7 +157,7 @@ func _build() -> void:
 	wash.modulate.a = 0.0
 	page_host.add_child(wash)
 	screens.editor = editor
-	for key in ["title", "day", "reveal", "end"]:
+	for key in ["title", "day", "reveal", "chapter", "end"]:
 		screens[key].visible = false
 
 
@@ -161,7 +177,7 @@ func _build_title() -> Control:
 	var screen := _screen()
 	var box := _column(screen)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	var art := _art_host(360)
+	var art := _art_host(220)
 	box.add_child(art)
 	var title_photo := _photo_in(art)
 	_present_photo(title_photo, "res://art/hero.webp", false)
@@ -170,10 +186,13 @@ func _build_title() -> Control:
 	var tag := _label(str(Game.meta.get("tagline", "Тридцать дней. Один стук. Два пальца.")), 28, MUTED, body, HORIZONTAL_ALIGNMENT_CENTER)
 	tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(tag)
-	var start := _button("Начать", true)
+	var start := _button("Начать", true, 78)
 	start.pressed.connect(_on_start)
 	box.add_child(start)
-	var edit := _button("Править события", false)
+	continue_button = _button("Продолжить", false, 72)
+	continue_button.pressed.connect(_on_continue)
+	box.add_child(continue_button)
+	var edit := _button("Править события", false, 72)
 	edit.pressed.connect(_open_editor)
 	box.add_child(edit)
 	var mute := _button("", false)
@@ -191,11 +210,12 @@ func _build_day() -> Control:
 	var box := _column(screen)
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 12)
-	day_title = _label("ДЕНЬ 01", 42, INK, display, HORIZONTAL_ALIGNMENT_LEFT)
+	day_title = _label("Глава 1 · Квартира · День 01", 28, INK, display, HORIZONTAL_ALIGNMENT_LEFT)
 	day_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	day_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	top.add_child(day_title)
 	var mute := _button("звук", false)
-	mute.custom_minimum_size = Vector2(148, 64)
+	mute.custom_minimum_size = Vector2(118, 64)
 	mute.pressed.connect(_on_mute)
 	mute_buttons.append(mute)
 	top.add_child(mute)
@@ -207,7 +227,9 @@ func _build_day() -> Control:
 	var art := _art_host(420)
 	art.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	art.size_flags_stretch_ratio = 1.35
+	day_art = art
 	day_photo = _photo_in(art)
+	day_stamp = _stamp(art)
 	box.add_child(art)
 	day_text = _rich(30)
 	day_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -232,7 +254,9 @@ func _build_reveal() -> Control:
 	box.add_child(_label("И ВОТ", 28, BLOOD, display, HORIZONTAL_ALIGNMENT_LEFT))
 	var art := _art_host(360)
 	art.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	reveal_art = art
 	reveal_photo = _photo_in(art)
+	reveal_stamp = _stamp(art)
 	box.add_child(art)
 	reveal_text = _rich(36)
 	reveal_text.custom_minimum_size = Vector2(0, 160)
@@ -269,7 +293,7 @@ func _build_end() -> Control:
 	end_line = _label("", 26, INK, body, HORIZONTAL_ALIGNMENT_CENTER)
 	end_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(end_line)
-	var art := _art_host(280)
+	var art := _art_host(200)
 	end_photo = _photo_in(art)
 	end_mark = _label("✗", 140, BLOOD, display, HORIZONTAL_ALIGNMENT_CENTER)
 	end_mark.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -286,15 +310,52 @@ func _build_end() -> Control:
 	box.add_child(end_stats)
 	end_seed = _label("", 16, MUTED, body, HORIZONTAL_ALIGNMENT_CENTER)
 	box.add_child(end_seed)
-	end_again = _button("Ещё раз", true)
-	end_again.pressed.connect(_on_start)
+	end_again = _button("Главу заново", true, 74)
+	end_again.pressed.connect(_on_retry_chapter)
 	box.add_child(end_again)
-	end_same = _button("То же зерно", false)
+	end_fresh = _button("С начала", false, 74)
+	end_fresh.pressed.connect(_on_start)
+	box.add_child(end_fresh)
+	end_same = _button("То же зерно", false, 74)
 	end_same.pressed.connect(_on_same_seed)
 	box.add_child(end_same)
-	var home := _button("На титр", false)
+	var home := _button("На титр", false, 74)
 	home.pressed.connect(func() -> void: _show_screen(screens.title))
 	box.add_child(home)
+	return screen
+
+
+func _build_chapter() -> Control:
+	var screen := _screen()
+	var box := _column(screen)
+	chapter_kicker = _label("ГЛАВА ПРОЙДЕНА", 28, BLOOD, display, HORIZONTAL_ALIGNMENT_CENTER)
+	box.add_child(chapter_kicker)
+	chapter_number = _label("1", 96, BLOOD, display, HORIZONTAL_ALIGNMENT_CENTER)
+	box.add_child(chapter_number)
+	chapter_name = _label("Квартира", 48, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
+	chapter_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(chapter_name)
+	var rule := ColorRect.new()
+	rule.custom_minimum_size = Vector2(0, 3)
+	rule.color = BLOOD
+	box.add_child(rule)
+	chapter_line = _label("", 26, INK, body, HORIZONTAL_ALIGNMENT_CENTER)
+	chapter_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(chapter_line)
+	var art := _art_host(240)
+	var photo := _photo_in(art)
+	photo.name = "ChapterPhoto"
+	box.add_child(art)
+	chapter_bits = VBoxContainer.new()
+	chapter_bits.add_theme_constant_override("separation", 4)
+	box.add_child(chapter_bits)
+	chapter_stats = HBoxContainer.new()
+	chapter_stats.alignment = BoxContainer.ALIGNMENT_CENTER
+	chapter_stats.add_theme_constant_override("separation", 14)
+	box.add_child(chapter_stats)
+	chapter_next = _button("Дальше", true)
+	chapter_next.pressed.connect(_on_chapter_next)
+	box.add_child(chapter_next)
 	return screen
 
 
@@ -332,6 +393,34 @@ func _art_host(min_h: float) -> Control:
 	style.shadow_offset = Vector2(3, 4)
 	host.add_theme_stylebox_override("panel", style)
 	return host
+
+
+func _stamp(host: Control) -> Label:
+	var stamp := _label("изюминка", 26, BLOOD, display, HORIZONTAL_ALIGNMENT_RIGHT)
+	stamp.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	stamp.offset_left = -196
+	stamp.offset_top = 14
+	stamp.offset_right = -18
+	stamp.offset_bottom = 46
+	stamp.rotation_degrees = -6
+	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stamp.visible = false
+	host.add_child(stamp)
+	return stamp
+
+
+func _frame_art(host: Panel, highlight: bool) -> void:
+	if host == null:
+		return
+	var style := host.get_theme_stylebox("panel")
+	if style == null:
+		return
+	var copy := style.duplicate() as StyleBoxFlat
+	if copy == null:
+		return
+	copy.border_color = BLOOD if highlight else INK
+	copy.set_border_width_all(8 if highlight else 3)
+	host.add_theme_stylebox_override("panel", copy)
 
 
 func _photo_in(host: Control) -> TextureRect:
@@ -406,12 +495,12 @@ func _rich(size: int) -> RichTextLabel:
 	return label
 
 
-func _button(text: String, primary: bool) -> Button:
+func _button(text: String, primary: bool, height: int = 92) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	button.custom_minimum_size = Vector2(0, 92)
+	button.custom_minimum_size = Vector2(0, height)
 	button.add_theme_font_override("font", display)
 	button.add_theme_font_size_override("font_size", 34)
 	button.add_theme_stylebox_override("normal", _button_style(primary, false))
@@ -464,25 +553,37 @@ func _stat_row() -> HBoxContainer:
 
 func _volume_row() -> Control:
 	var row := VBoxContainer.new()
-	row.add_theme_constant_override("separation", 2)
-	row.add_child(_label("громкость", 20, MUTED, body, HORIZONTAL_ALIGNMENT_CENTER))
+	row.add_theme_constant_override("separation", 4)
+	row.add_child(_slider_line("Звуки", Sfx.volume, func(value: float) -> void:
+		Sfx.set_volume(value)
+	))
+	row.add_child(_slider_line("Музыка", Sfx.music_volume, func(value: float) -> void:
+		Sfx.set_music_volume(value)
+	))
+	return row
+
+
+func _slider_line(caption: String, current: float, apply: Callable) -> Control:
+	var line := VBoxContainer.new()
+	line.add_theme_constant_override("separation", 0)
+	line.add_child(_label(caption, 20, MUTED, body, HORIZONTAL_ALIGNMENT_CENTER))
 	var slider := HSlider.new()
 	slider.min_value = 0
 	slider.max_value = 100
 	slider.step = 1
-	slider.value = Sfx.volume * 100.0
-	slider.custom_minimum_size = Vector2(0, 44)
+	slider.value = current * 100.0
+	slider.custom_minimum_size = Vector2(0, 36)
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.value_changed.connect(func(value: float) -> void:
 		Sfx.note_input()
-		Sfx.set_volume(value / 100.0)
+		apply.call(value / 100.0)
 	)
 	slider.drag_ended.connect(func(_changed: bool) -> void:
 		Sfx.note_input()
 		Sfx.play("ui/tap", -6.0)
 	)
-	row.add_child(slider)
-	return row
+	line.add_child(slider)
+	return line
 
 
 func _tint_stat(number: Label, value: int) -> void:
@@ -559,6 +660,8 @@ func _show_screen(screen: Control) -> void:
 			previous.modulate.a = 1.0
 		)
 	current = screen
+	if screen == screens.title:
+		_refresh_title()
 
 
 func _type_into(label: RichTextLabel, text: String) -> void:
@@ -598,6 +701,34 @@ func _on_start() -> void:
 	_show_day()
 
 
+func _on_continue() -> void:
+	Sfx.note_input()
+	Sfx.play("ui/tap", -6.0)
+	if not Game.load_checkpoint():
+		Game.start_run()
+	_show_day()
+
+
+func _on_retry_chapter() -> void:
+	Sfx.note_input()
+	Sfx.play("ui/tap", -6.0)
+	if not Game.load_checkpoint():
+		Game.start_run()
+	_show_day()
+
+
+func _refresh_title() -> void:
+	Sfx.set_duck(false)
+	if continue_button == null:
+		return
+	var saved: Dictionary = Game.peek_checkpoint()
+	continue_button.visible = not saved.is_empty()
+	if saved.is_empty():
+		return
+	var number := int(saved.get("chapter", 1))
+	continue_button.text = "Продолжить · %s" % Game.chapter_title(number)
+
+
 func _on_same_seed() -> void:
 	Sfx.note_input()
 	Sfx.play("ui/tap", -6.0)
@@ -613,16 +744,23 @@ func _open_editor() -> void:
 
 
 func _show_day() -> void:
-	day_title.text = "ДЕНЬ %02d" % Game.day
+	Sfx.set_duck(false)
+	day_title.text = Game.header_text()
 	day_hint.text = Game.night_hint()
 	_refresh_stats(false)
 	_refresh_mute()
+	var highlight := Game.is_highlight()
+	_frame_art(day_art, highlight)
+	if day_stamp:
+		day_stamp.visible = highlight
 	_present_photo(day_photo, Game.illustration_path(), true)
 	_type_into(day_text, Game.setup_text())
 	_apply_choice_button(choice_a, "a")
 	_apply_choice_button(choice_b, "b")
 	Sfx.play("ui/page", -10.0)
 	Sfx.play(Game.sound_key(), -4.0)
+	if highlight:
+		Sfx.play("ui/stamp", -8.0)
 	_show_screen(screens.day)
 
 
@@ -672,6 +810,10 @@ func _show_reveal(reveal: Dictionary) -> void:
 		_pop(chip)
 	_refresh_stats(true)
 	_present_photo(reveal_photo, str(reveal.get("image", Game.illustration_path())), true)
+	var highlight := bool(reveal.get("highlight", false))
+	_frame_art(reveal_art, highlight)
+	if reveal_stamp:
+		reveal_stamp.visible = highlight
 	var bad := bool(reveal.get("bad", false)) or bool(reveal.get("dead", false))
 	_soft_reaction(bad)
 	if bool(reveal.get("dead", false)):
@@ -679,6 +821,9 @@ func _show_reveal(reveal: Dictionary) -> void:
 		Sfx.play("ui/bad", -2.0)
 	elif bool(reveal.get("won", false)):
 		next_button.text = "Итог"
+		Sfx.play("ui/good", -2.0)
+	elif bool(reveal.get("chapter_break", false)):
+		next_button.text = "Глава пройдена"
 		Sfx.play("ui/good", -2.0)
 	elif bad:
 		next_button.text = "Дальше"
@@ -696,11 +841,47 @@ func _on_next() -> void:
 	Sfx.play("ui/tap", -8.0)
 	if Game.run_over:
 		_show_end()
+	elif Game.chapter_break:
+		_show_chapter()
 	else:
 		_show_day()
 
 
+func _show_chapter() -> void:
+	Sfx.set_duck(false)
+	var report: Dictionary = Game.chapter_report
+	var number := int(report.get("number", Game.chapter))
+	chapter_kicker.text = "ГЛАВА ПРОЙДЕНА"
+	chapter_number.text = "%02d" % number
+	chapter_name.text = str(report.get("name", Game.chapter_title(number)))
+	chapter_line.text = str(report.get("line", ""))
+	chapter_next.text = str(report.get("next", "Дальше"))
+	for child in chapter_bits.get_children():
+		child.queue_free()
+	for bit in Game.epitaphs(3):
+		chapter_bits.add_child(_label(bit, 24, INK, body, HORIZONTAL_ALIGNMENT_CENTER))
+	for child in chapter_stats.get_children():
+		child.queue_free()
+	for id in Game.STAT_ORDER:
+		var value := int(Game.stats.get(id, 0))
+		chapter_stats.add_child(_label("%s %d" % [Game.stat_label(id), value], 28, BLOOD if value <= 1 else INK, display, HORIZONTAL_ALIGNMENT_CENTER))
+	var photo := screens.chapter.find_child("ChapterPhoto", true, false) as TextureRect
+	_present_photo(photo, str(Game.last_reveal.get("image", "res://art/hero.webp")), true)
+	Sfx.play("ui/good", -4.0)
+	_show_screen(screens.chapter)
+
+
+func _on_chapter_next() -> void:
+	if current != screens.chapter:
+		return
+	Sfx.note_input()
+	Sfx.play("ui/tap", -8.0)
+	Game.advance_chapter()
+	_show_day()
+
+
 func _show_end() -> void:
+	Sfx.set_duck(true)
 	var won := Game.won
 	end_kicker.text = "СЕРИЯ ЗАКРЫТА" if won else "СЕРИЯ ОБОРВАЛАСЬ"
 	end_kicker.add_theme_color_override("font_color", INK if won else BLOOD)
@@ -720,7 +901,11 @@ func _show_end() -> void:
 	for id in Game.STAT_ORDER:
 		var value := int(Game.stats.get(id, 0))
 		end_stats.add_child(_label("%s %d" % [Game.stat_label(id), value], 28, BLOOD if value <= 1 else INK, display, HORIZONTAL_ALIGNMENT_CENTER))
-	end_seed.text = "зерно %d  ·  день %d из %d" % [Game.seed_value, Game.day, Game.days_to_win]
+	end_seed.text = "зерно %d  ·  глава %d  ·  день %d  ·  всего %d" % [Game.seed_value, Game.chapter, Game.day, Game.total_day()]
+	if end_again:
+		end_again.text = "Ещё раз" if won else "Главу заново"
+	if end_fresh:
+		end_fresh.visible = not won
 	var photo := "res://art/hero.webp" if won else str(Game.last_reveal.get("image", "res://art/hero.webp"))
 	_present_photo(end_photo, photo, true)
 	if end_mark:
@@ -774,6 +959,30 @@ func _run_shots() -> void:
 	_show_end()
 	await get_tree().create_timer(0.35).timeout
 	await _shot("05-win")
+	Game.start_run(11)
+	Game.chapter = 2
+	Game.day = 7
+	if Game.by_id.has("rope_seen"):
+		Game.pending = Game.by_id["rope_seen"]
+	_show_day()
+	_skip_type()
+	await get_tree().create_timer(0.25).timeout
+	await _shot("06-chapter2")
+	if Game.by_id.has("pigeon_ultimatum"):
+		Game.pending = Game.by_id["pigeon_ultimatum"]
+	_show_day()
+	_skip_type()
+	await get_tree().create_timer(0.25).timeout
+	await _shot("07-highlight")
+	Game.chapter = 1
+	Game.day = 30
+	Game.chapter_break = true
+	Game._mark_chapter_break()
+	Game.last_reveal = {"image": "res://art/scenes/door.webp"}
+	Game.stats = {"food": 4, "health": 3, "sanity": 4, "ammo": 2}
+	_show_chapter()
+	await get_tree().create_timer(0.35).timeout
+	await _shot("08-chapter")
 	get_tree().quit()
 
 

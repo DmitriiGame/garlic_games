@@ -10,6 +10,8 @@ var status: Label
 var setup_edit: TextEdit
 var image_edit: LineEdit
 var sound_edit: LineEdit
+var chapter_spin: SpinBox
+var highlight_box: CheckBox
 var fields: Dictionary = {}
 var roll_note: Label
 var lock := false
@@ -94,6 +96,20 @@ func _build() -> void:
 	sound_edit.custom_minimum_size = Vector2(0, 52)
 	sound_edit.add_theme_font_size_override("font_size", 22)
 	box.add_child(sound_edit)
+	var chapter_row := HBoxContainer.new()
+	chapter_row.add_theme_constant_override("separation", 8)
+	chapter_row.add_child(_label("Глава"))
+	chapter_spin = SpinBox.new()
+	chapter_spin.min_value = 1
+	chapter_spin.max_value = 3
+	chapter_spin.step = 1
+	chapter_spin.custom_minimum_size = Vector2(90, 48)
+	chapter_row.add_child(chapter_spin)
+	highlight_box = CheckBox.new()
+	highlight_box.text = "Изюминка"
+	highlight_box.add_theme_font_size_override("font_size", 22)
+	chapter_row.add_child(highlight_box)
+	box.add_child(chapter_row)
 
 	for which in ["a", "b"]:
 		var title := "Выбор А" if which == "a" else "Выбор Б"
@@ -140,7 +156,7 @@ func _build() -> void:
 	tools.add_child(remove)
 	box.add_child(tools)
 	box.add_child(reset)
-	box.add_child(_label("Полная правка условий, флагов и случайных исходов — в доке «События» редактора Godot или прямо в data/events.json."))
+	box.add_child(_label("Глава и штамп «изюминка» правятся здесь. Условия, флаги и случайные исходы — в доке «События» или в data/events.json. Поле when.chapter дублирует номер главы."))
 
 
 func _fill_list() -> void:
@@ -151,7 +167,7 @@ func _fill_list() -> void:
 		if typeof(ev) != TYPE_DICTIONARY:
 			list.add_item("?")
 		else:
-			list.add_item(str(ev.get("id", "?")))
+			list.add_item("%d · %s" % [int(ev.get("chapter", 1)), str(ev.get("id", "?"))])
 	if events.is_empty():
 		selected = -1
 		lock = false
@@ -182,6 +198,9 @@ func _load_selected() -> void:
 	setup_edit.text = str(ev.get("setup", ""))
 	image_edit.text = str(ev.get("image", ""))
 	sound_edit.text = str(ev.get("sound", ""))
+	var when: Dictionary = ev.get("when", {})
+	chapter_spin.value = int(ev.get("chapter", when.get("chapter", 1)))
+	highlight_box.button_pressed = bool(ev.get("highlight", false))
 	for which in ["a", "b"]:
 		var branch: Dictionary = ev.get(which, {})
 		fields[which]["label"].text = str(branch.get("label", ""))
@@ -212,6 +231,14 @@ func _store_selected() -> void:
 		ev.erase("sound")
 	else:
 		ev["sound"] = clip
+	ev["chapter"] = int(chapter_spin.value)
+	if typeof(ev.get("when")) != TYPE_DICTIONARY:
+		ev["when"] = {}
+	ev["when"]["chapter"] = int(chapter_spin.value)
+	if highlight_box.button_pressed:
+		ev["highlight"] = true
+	else:
+		ev.erase("highlight")
 	for which in ["a", "b"]:
 		if typeof(ev.get(which)) != TYPE_DICTIONARY:
 			ev[which] = {}
@@ -247,10 +274,11 @@ func _add() -> void:
 		id = "event_%d" % number
 	events.append({
 		"id": id,
+		"chapter": int(chapter_spin.value) if chapter_spin else 1,
 		"once": true,
 		"weight": 1,
 		"scene": "door",
-		"when": {"min_day": 1, "max_day": 30},
+		"when": {"chapter": int(chapter_spin.value) if chapter_spin else 1, "min_day": 1, "max_day": 30},
 		"setup": "Кто-то стучит. Коротко, как в хорошем ролике.",
 		"a": {"label": "Открыть", "text": "Ты открыл. Дальше допиши сам.", "effects": {"sanity": -1}},
 		"b": {"label": "Не открывать", "text": "Дверь осталась дверью.", "effects": {"sanity": 1}},
