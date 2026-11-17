@@ -1,0 +1,269 @@
+{
+  "version": 1,
+  "creatures": [
+    {
+      "id": "dvorovoy",
+      "name": "Дворовой",
+      "biome": "yard",
+      "rarity": "common",
+      "weight": 48,
+      "income_scale": 1,
+      "shape": "squat",
+      "color": "#7d8a45",
+      "line": "Хозяин лужи у крыльца. Тапок признал своим."
+    },
+    {
+      "id": "domovoy",
+      "name": "Домовой",
+      "biome": "yard",
+      "rarity": "common",
+      "weight": 42,
+      "income_scale": 1,
+      "shape": "squat",
+      "color": "#8a6239",
+      "line": "Вышел за тапком, потому что это его тапок."
+    },
+    {
+      "id": "babay",
+      "name": "Бабай",
+      "biome": "yard",
+      "rarity": "uncommon",
+      "weight": 20,
+      "income_scale": 1,
+      "shape": "tall",
+      "color": "#2c333c",
+      "line": "Сидел в шкафу. Шкаф остался во дворе."
+    },
+    {
+      "id": "shishiga",
+      "name": "Шишига",
+      "biome": "yard",
+      "rarity": "rare",
+      "weight": 8,
+      "income_scale": 1,
+      "shape": "wispy",
+      "color": "#6e4a6a",
+      "line": "Мелкая, злая и уже в одном тапке."
+    },
+    {
+      "id": "ogorodnik",
+      "name": "Огородник",
+      "biome": "garden",
+      "rarity": "common",
+      "weight": 40,
+      "income_scale": 1,
+      "shape": "squat",
+      "color": "#6a8f3a",
+      "line": "Полол репу. Репа, кажется, полола его."
+    },
+    {
+      "id": "poludnitsa",
+      "name": "Полудница",
+      "biome": "garden",
+      "rarity": "uncommon",
+      "weight": 22,
+      "income_scale": 1,
+      "shape": "tall",
+      "color": "#c4b15a",
+      "line": "Явилась ровно в полдень и требует тень."
+    },
+    {
+      "id": "mezhevik",
+      "name": "Межевик",
+      "biome": "garden",
+      "rarity": "uncommon",
+      "weight": 18,
+      "income_scale": 1,
+      "shape": "horned",
+      "color": "#4e6b4a",
+      "line": "Сидит на меже и не пускает даже тапки."
+    },
+    {
+      "id": "kikimora",
+      "name": "Кикимора",
+      "biome": "garden",
+      "rarity": "rare",
+      "weight": 9,
+      "income_scale": 1,
+      "shape": "wispy",
+      "color": "#3f7a6a",
+      "line": "Мокрые волосы, сухой нрав, интерес к чугуну."
+    },
+    {
+      "id": "auka",
+      "name": "Аука",
+      "biome": "forest",
+      "rarity": "common",
+      "weight": 30,
+      "income_scale": 1,
+      "shape": "wispy",
+      "color": "#7ea37a",
+      "line": "Аукает так, будто вы ему должны."
+    },
+    {
+      "id": "borovik",
+      "name": "Боровик",
+      "biome": "forest",
+      "rarity": "uncommon",
+      "weight": 16,
+      "income_scale": 1,
+      "shape": "squat",
+      "color": "#a85a3a",
+      "line": "Не гриб. Обижается, если спросить дважды."
+    },
+    {
+      "id": "lesavka",
+      "name": "Лесавка",
+      "biome": "forest",
+      "rarity": "rare",
+      "weight": 10,
+      "income_scale": 1,
+      "shape": "tall",
+      "color": "#2f6a4a",
+      "line": "Смотрит как на грибника с плохим слухом."
+    },
+    {
+      "id": "leshy",
+      "name": "Леший",
+      "biome": "forest",
+      "rarity": "epic",
+      "weight": 5,
+      "income_scale": 1.15,
+      "shape": "horned",
+      "color": "#1e4a32",
+      "line": "Плутает тропинки, но на грохот вышел сам."
+    },
+    {
+      "id": "bolotnik",
+      "name": "Болотник",
+      "biome": "swamp",
+      "rarity": "uncommon",
+      "weight": 24,
+      "income_scale": 1,
+      "shape": "blob",
+      "color": "#4a6a48",
+      "line": "Булькает вежливо. Это всё равно угроза."
+    },
+    {
+      "id": "anchutka",
+      "name": "Анчутка",
+      "biome": "swamp",
+      "rarity": "uncommon",
+      "weight": 20,
+      "income_scale": 1,
+      "shape": "squat",
+      "color": "#6a5a3a",
+      "line": "Маленький, в тине, без пяток. Тапки его задели."
+    },
+    {
+      "id": "bolotnitsa",
+      "name": "Болотница",
+      "biome": "swamp",
+      "rarity": "rare",
+      "weight": 11,
+      "income_scale": 1,
+      "shape": "wispy",
+      "color": "#6a8a8a",
+      "line": "Зовёт купаться. Глубина тут договорная."
+    },
+    {
+      "id": "tsar_zhaba",
+      "name": "Царь-жаба",
+      "biome": "swamp",
+      "rarity": "epic",
+      "weight": 4,
+      "income_scale": 1.2,
+      "shape": "blob",
+      "color": "#3f6a32",
+      "line": "Корона из ряски. Подданные квакают «ура»."
+    },
+    {
+      "id": "obderiha",
+      "name": "Обдериха",
+      "biome": "bath",
+      "rarity": "uncommon",
+      "weight": 18,
+      "income_scale": 1,
+      "shape": "tall",
+      "color": "#a06a62",
+      "line": "Царапается за немытую спину. Тапок тоже сойдёт."
+    },
+    {
+      "id": "banniy_shish",
+      "name": "Банный шиш",
+      "biome": "bath",
+      "rarity": "rare",
+      "weight": 12,
+      "income_scale": 1,
+      "shape": "horned",
+      "color": "#c4844a",
+      "line": "Путает веники и чужие судьбы."
+    },
+    {
+      "id": "polok",
+      "name": "Дух полока",
+      "biome": "bath",
+      "rarity": "rare",
+      "weight": 10,
+      "income_scale": 1,
+      "shape": "wispy",
+      "color": "#d2c6b4",
+      "line": "Живёт на полке. С полки лучше не падать."
+    },
+    {
+      "id": "bannik",
+      "name": "Банник",
+      "biome": "bath",
+      "rarity": "epic",
+      "weight": 5,
+      "income_scale": 1.25,
+      "shape": "squat",
+      "color": "#8a4a3a",
+      "line": "Пар его. Вы в гостях, даже если бросили утюг."
+    },
+    {
+      "id": "naviy",
+      "name": "Навий",
+      "biome": "grave",
+      "rarity": "rare",
+      "weight": 14,
+      "income_scale": 1,
+      "shape": "wispy",
+      "color": "#8a93a8",
+      "line": "Из тех, кого не зовут. Пришёл на грохот."
+    },
+    {
+      "id": "mogilny",
+      "name": "Могильный бес",
+      "biome": "grave",
+      "rarity": "rare",
+      "weight": 12,
+      "income_scale": 1,
+      "shape": "horned",
+      "color": "#5a4a6a",
+      "line": "Сторож, который сторожит не то."
+    },
+    {
+      "id": "upyr",
+      "name": "Упырь",
+      "biome": "grave",
+      "rarity": "epic",
+      "weight": 6,
+      "income_scale": 1.3,
+      "shape": "tall",
+      "color": "#7a3038",
+      "line": "Встал посмотреть, кто шумит. Остался из вежливости."
+    },
+    {
+      "id": "zalozhny",
+      "name": "Заложный",
+      "biome": "grave",
+      "rarity": "epic",
+      "weight": 5,
+      "income_scale": 1.35,
+      "shape": "blob",
+      "color": "#4a5560",
+      "line": "Его проводили кое-как. Он и уходит кое-как."
+    }
+  ]
+}

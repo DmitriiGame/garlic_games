@@ -73,19 +73,40 @@ jobs:
             exit 1
           fi
 
+      - name: Export the throw game
+        run: |
+          set -euo pipefail
+          godot --headless --path throw --import --quit
+          mkdir -p /tmp/throw-web
+          godot --headless --path throw --export-release "Web" /tmp/throw-web/index.html
+          test -s /tmp/throw-web/index.html
+          test -s /tmp/throw-web/index.wasm
+          test -s /tmp/throw-web/index.pck
+          if ! grep -q 'GODOT_THREADS_ENABLED = false' /tmp/throw-web/index.html; then
+            echo "Throw web export is not the single-threaded build."
+            exit 1
+          fi
+          if grep -q 'Cross-Origin-Embedder-Policy' /tmp/throw-web/index.html; then
+            echo "Throw web export asks for cross-origin isolation."
+            exit 1
+          fi
+
       - name: Assemble Pages site
         run: |
           set -euo pipefail
-          mkdir -p _site/door _site/assets
-          # Root game, unchanged. Door sources stay in the repo and out of the site.
+          mkdir -p _site/door _site/throw _site/assets
+          # Root game, unchanged. Godot sources stay in the repo and out of the site.
           cp index.html style.css game.js .nojekyll README.md _site/
           cp -a assets/. _site/assets/
           cp -a /tmp/door-web/. _site/door/
+          cp -a /tmp/throw-web/. _site/throw/
           test -f _site/index.html
           test -f _site/game.js
           test -f _site/assets/cucumber-chuck.png
           test -f _site/door/index.html
           test -f _site/door/index.wasm
+          test -f _site/throw/index.html
+          test -f _site/throw/index.wasm
           grep -q 'Огурчик Чак' _site/index.html
 
       - name: Setup Pages

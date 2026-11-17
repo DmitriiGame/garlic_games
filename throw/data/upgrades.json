@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "upgrades": [
+    {
+      "id": "throw_power",
+      "name": "Замах",
+      "max_level": 24,
+      "base_cost": 70,
+      "growth": 1.55,
+      "blurb": "Тапок улетает дальше."
+    },
+    {
+      "id": "pen_slots",
+      "name": "Место в загоне",
+      "max_level": 8,
+      "base_cost": 90,
+      "growth": 1.7,
+      "blurb": "Ещё одна нечисть при деле."
+    },
+    {
+      "id": "pen_income",
+      "name": "Кормёжка",
+      "max_level": 18,
+      "base_cost": 55,
+      "growth": 1.56,
+      "blurb": "Сытые таскают больше грошей."
+    },
+    {
+      "id": "lure",
+      "name": "Приманка",
+      "max_level": 3,
+      "base_cost": 160,
+      "growth": 2.15,
+      "blurb": "На грохот сбегается ещё кто-то."
+    }
+  ]
+}

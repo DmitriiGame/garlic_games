@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "biomes": [
+    {
+      "id": "yard",
+      "name": "Двор",
+      "unlock_distance": 0,
+      "ground": "#4a5a38",
+      "blurb": "Капуста смотрит. Тапок ещё тёплый."
+    },
+    {
+      "id": "garden",
+      "name": "Огород",
+      "unlock_distance": 40,
+      "ground": "#5d6b32",
+      "blurb": "Грядки шевелятся без ветра."
+    },
+    {
+      "id": "forest",
+      "name": "Лес",
+      "unlock_distance": 78,
+      "ground": "#2c4634",
+      "blurb": "Берёзы моргают, если смотреть долго."
+    },
+    {
+      "id": "swamp",
+      "name": "Болото",
+      "unlock_distance": 135,
+      "ground": "#3a4a3c",
+      "blurb": "Трясина аплодирует чавканьем."
+    },
+    {
+      "id": "bath",
+      "name": "Баня",
+      "unlock_distance": 210,
+      "ground": "#5a463c",
+      "blurb": "Пар стоит столбом и имеет мнение."
+    },
+    {
+      "id": "grave",
+      "name": "Кладбище",
+      "unlock_distance": 320,
+      "ground": "#3a3a46",
+      "blurb": "Тишина возмутилась первой."
+    }
+  ]
+}

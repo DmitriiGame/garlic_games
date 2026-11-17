@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "currency_one": "грош",
+  "currency_few": "гроша",
+  "currency_many": "грошей",
+  "base_distance": 8,
+  "power_distance": 30,
+  "throw_step": 0.18,
+  "income_step": 0.2,
+  "base_spawns": 3,
+  "max_spawns": 6,
+  "lure_per_level": 1,
+  "start_pen": 3,
+  "duplicate_bonus": 0.22,
+  "duplicate_cap": 5,
+  "offline_cap_sec": 28800,
+  "start_currency": 0,
+  "meter_hz": 0.45,
+  "rarity": {
+    "common": {
+      "label": "частая",
+      "income": 0.18,
+      "window": 2.5,
+      "catch_bonus": 2
+    },
+    "uncommon": {
+      "label": "редкая",
+      "income": 0.45,
+      "window": 1.9,
+      "catch_bonus": 6
+    },
+    "rare": {
+      "label": "очень редкая",
+      "income": 1.1,
+      "window": 1.35,
+      "catch_bonus": 14
+    },
+    "epic": {
+      "label": "чердачная",
+      "income": 2.8,
+      "window": 1.05,
+      "catch_bonus": 32
+    }
+  },
+  "sim": {
+    "throw_cycle_sec": 8,
+    "catch_rate": {
+      "common": 0.95,
+      "uncommon": 0.84,
+      "rare": 0.6,
+      "epic": 0.36
+    }
+  }
+}
