@@ -15,6 +15,9 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  GODOT_VERSION: "4.7.2"
+
 jobs:
   deploy:
     environment:
@@ -24,14 +27,77 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Godot web export templates
+        id: godot-templates
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/godot-templates
+          key: godot-${{ env.GODOT_VERSION }}-web-nothreads
+
+      - name: Install Godot
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/godot.zip -L "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q -o /tmp/godot.zip -d /tmp/godot-dist
+          sudo install -m 755 "/tmp/godot-dist/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          mkdir -p "${RUNNER_TEMP}/godot-templates"
+          if [ ! -f "${RUNNER_TEMP}/godot-templates/web_nothreads_release.zip" ]; then
+            curl -fsSL -o /tmp/templates.tpz -L "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+            unzip -q -o /tmp/templates.tpz \
+              "templates/version.txt" \
+              "templates/web_nothreads_release.zip" \
+              "templates/web_nothreads_debug.zip" \
+              -d /tmp/godot-templates-zip
+            cp /tmp/godot-templates-zip/templates/* "${RUNNER_TEMP}/godot-templates/"
+          fi
+          mkdir -p "${HOME}/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          cp "${RUNNER_TEMP}/godot-templates/"* "${HOME}/.local/share/godot/export_templates/${GODOT_VERSION}.stable/"
+          test "$(cat "${HOME}/.local/share/godot/export_templates/${GODOT_VERSION}.stable/version.txt")" = "${GODOT_VERSION}.stable"
+
+      - name: Export the door game
+        run: |
+          set -euo pipefail
+          godot --headless --path door --import --quit
+          mkdir -p /tmp/door-web
+          godot --headless --path door --export-release "Web" /tmp/door-web/index.html
+          test -s /tmp/door-web/index.html
+          test -s /tmp/door-web/index.wasm
+          test -s /tmp/door-web/index.pck
+          if ! grep -q 'GODOT_THREADS_ENABLED = false' /tmp/door-web/index.html; then
+            echo "Web export is not the single-threaded build."
+            exit 1
+          fi
+          if grep -q 'Cross-Origin-Embedder-Policy' /tmp/door-web/index.html; then
+            echo "Web export asks for cross-origin isolation."
+            exit 1
+          fi
+
+      - name: Assemble Pages site
+        run: |
+          set -euo pipefail
+          mkdir -p _site/door _site/assets
+          # Root game, unchanged. Door sources stay in the repo and out of the site.
+          cp index.html style.css game.js .nojekyll README.md _site/
+          cp -a assets/. _site/assets/
+          cp -a /tmp/door-web/. _site/door/
+          test -f _site/index.html
+          test -f _site/game.js
+          test -f _site/assets/cucumber-chuck.png
+          test -f _site/door/index.html
+          test -f _site/door/index.wasm
+          grep -q 'Огурчик Чак' _site/index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
           enablement: true
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "."
+          path: _site
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
