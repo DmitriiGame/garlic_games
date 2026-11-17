@@ -12,6 +12,7 @@ var status: Label
 var id_edit: LineEdit
 var scene_edit: LineEdit
 var image_edit: LineEdit
+var sound_edit: LineEdit
 var weight_spin: SpinBox
 var min_spin: SpinBox
 var max_spin: SpinBox
@@ -67,6 +68,7 @@ func _ready() -> void:
 	id_edit = _line(box, "id")
 	scene_edit = _line(box, "scene: door, dog, basement…")
 	image_edit = _line(box, "image: пусто = scenes/<scene>, или свой файл в art/")
+	sound_edit = _line(box, "sound: пусто = scenes/<scene>, путь в audio/")
 	var row := HBoxContainer.new()
 	weight_spin = _spin(1, 200)
 	min_spin = _spin(1, 60)
@@ -189,6 +191,7 @@ func _load_form() -> void:
 	id_edit.text = str(ev.get("id", ""))
 	scene_edit.text = str(ev.get("scene", "quiet"))
 	image_edit.text = str(ev.get("image", ""))
+	sound_edit.text = str(ev.get("sound", ""))
 	weight_spin.value = int(ev.get("weight", 1))
 	once_box.button_pressed = bool(ev.get("once", true))
 	priority_box.button_pressed = bool(ev.get("priority", false))
@@ -229,6 +232,11 @@ func _apply_form() -> void:
 		ev.erase("image")
 	else:
 		ev["image"] = picture
+	var clip := sound_edit.text.strip_edges()
+	if clip == "":
+		ev.erase("sound")
+	else:
+		ev["sound"] = clip
 	ev["weight"] = int(weight_spin.value)
 	ev["once"] = once_box.button_pressed
 	if priority_box.button_pressed:
