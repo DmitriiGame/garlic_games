@@ -74,6 +74,8 @@ jobs:
           fi
 
       - name: Export the throw game
+        id: throw
+        continue-on-error: true
         run: |
           set -euo pipefail
           godot --headless --path throw --import --quit
@@ -99,14 +101,35 @@ jobs:
           cp index.html style.css game.js .nojekyll README.md _site/
           cp -a assets/. _site/assets/
           cp -a /tmp/door-web/. _site/door/
-          cp -a /tmp/throw-web/. _site/throw/
+          if [ "${{ steps.throw.outcome }}" = "success" ]; then
+            cp -a /tmp/throw-web/. _site/throw/
+            test -f _site/throw/index.html
+            test -f _site/throw/index.wasm
+            test -f _site/throw/index.pck
+          else
+            echo "::warning::Экспорт throw/ не удался. На /throw/ кладётся заглушка «Игра скоро», root и door выкладываются как обычно."
+            mkdir -p _site/throw
+            cat > _site/throw/index.html <<'EOF'
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Бросай и лови</title>
+</head>
+<body>
+  <p>Игра скоро</p>
+</body>
+</html>
+EOF
+            test -f _site/throw/index.html
+            grep -q 'Игра скоро' _site/throw/index.html
+          fi
           test -f _site/index.html
           test -f _site/game.js
           test -f _site/assets/cucumber-chuck.png
           test -f _site/door/index.html
           test -f _site/door/index.wasm
-          test -f _site/throw/index.html
-          test -f _site/throw/index.wasm
           grep -q 'Огурчик Чак' _site/index.html
 
       - name: Setup Pages
