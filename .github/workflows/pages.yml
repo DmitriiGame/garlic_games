@@ -109,19 +109,19 @@ jobs:
           else
             echo "::warning::Экспорт throw/ не удался. На /throw/ кладётся заглушка «Игра скоро», root и door выкладываются как обычно."
             mkdir -p _site/throw
-            cat > _site/throw/index.html <<'EOF'
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Бросай и лови</title>
-</head>
-<body>
-  <p>Игра скоро</p>
-</body>
-</html>
-EOF
+            printf '%s\n' \
+              '<!DOCTYPE html>' \
+              '<html lang="ru">' \
+              '<head>' \
+              '  <meta charset="utf-8">' \
+              '  <meta name="viewport" content="width=device-width, initial-scale=1">' \
+              '  <title>Бросай и лови</title>' \
+              '</head>' \
+              '<body>' \
+              '  <p>Игра скоро</p>' \
+              '</body>' \
+              '</html>' \
+              > _site/throw/index.html
             test -f _site/throw/index.html
             grep -q 'Игра скоро' _site/throw/index.html
           fi
