@@ -219,12 +219,17 @@ func _build_day() -> Control:
 	var box := _column(screen)
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 12)
-	day_title = _label("Глава 1 · Квартира · День 01", 28, INK, display, HORIZONTAL_ALIGNMENT_LEFT)
+	day_title = _label("Глава 1 · Квартира · День 01", 26, INK, display, HORIZONTAL_ALIGNMENT_LEFT)
 	day_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	day_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	day_title.autowrap_mode = TextServer.AUTOWRAP_OFF
+	day_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	day_title.clip_text = true
 	top.add_child(day_title)
-	var mute := _button("звук", false)
-	mute.custom_minimum_size = Vector2(118, 64)
+	var mute := _button("Звук", false, 56)
+	mute.autowrap_mode = TextServer.AUTOWRAP_OFF
+	mute.clip_text = false
+	mute.add_theme_font_size_override("font_size", 22)
+	mute.custom_minimum_size = Vector2(148, 56)
 	mute.pressed.connect(_on_mute)
 	mute_buttons.append(mute)
 	top.add_child(mute)

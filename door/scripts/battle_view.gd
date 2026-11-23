@@ -135,25 +135,19 @@ func _story_card() -> Control:
 func _top_bar() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	header = _line("", 22, display)
+	header = _single_line("", 20)
 	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	header.clip_text = true
 	row.add_child(header)
 	row.add_child(_icon("res://art/ui/stat_health.png"))
-	hero_label = _line("40", 22, display)
+	hero_label = _single_line("40", 22)
 	row.add_child(hero_label)
-	var life := _bar()
-	hero_fill = life[1]
-	hero_fill.color = Palette.MARKER
-	life[0].size_flags_horizontal = Control.SIZE_SHRINK_END
-	life[0].custom_minimum_size = Vector2(72, 16)
-	row.add_child(life[0])
-	shield_label = _line("0", 18, display)
-	row.add_child(shield_label)
 	row.add_child(_icon("res://art/ui/stat_food.png"))
-	food_label = _line("0", 22, display)
+	food_label = _single_line("0", 22)
 	row.add_child(food_label)
 	row.add_child(_icon("res://art/ui/stat_ammo.png"))
-	ammo_label = _line("0", 22, display)
+	ammo_label = _single_line("0", 22)
 	row.add_child(ammo_label)
 	return row
 
@@ -314,8 +308,8 @@ func _spell_row() -> Control:
 		seg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		energy.add_child(seg)
 		energy_segs.append(seg)
-	energy_label = _line("0/10", 20, display)
-	energy_label.custom_minimum_size = Vector2(52, 0)
+	energy_label = _single_line("0/10", 20)
+	energy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	energy.add_child(energy_label)
 	wrap.add_child(energy)
 	return wrap
@@ -372,10 +366,8 @@ func refresh() -> void:
 	ammo_label.text = str(int(Game.stats.get("ammo", 0)))
 	story.text = Game.battle_blurb()
 	_show_enemy_card(fight)
-	var hero_max := maxi(1, int(fight.hero_max()))
-	hero_label.text = "%d" % int(fight.hp)
-	shield_label.text = "щ%d" % int(fight.shield)
-	_set_fill(hero_fill, float(fight.hp) / float(hero_max))
+	var shield := int(fight.shield)
+	hero_label.text = "%d+%d" % [int(fight.hp), shield] if shield > 0 else "%d" % int(fight.hp)
 	var enemy_max := maxi(1, int(fight.enemy.get("max_hp", 1)))
 	var extra := ""
 	if int(fight.minion_hp) > 0:
@@ -939,12 +931,17 @@ func _set_fill(fill: ColorRect, ratio: float) -> void:
 func _process(_delta: float) -> void:
 	if not is_visible_in_tree() or Game.battle == null:
 		return
-	var hero_max := maxi(1, int(Game.battle.hero_max()))
-	_set_fill(hero_fill, float(Game.battle.hp) / float(hero_max))
 	var enemy_max := maxi(1, int(Game.battle.enemy.get("max_hp", 1)))
 	_set_fill(enemy_fill, float(int(Game.battle.enemy["hp"])) / float(enemy_max))
 	if OS.is_debug_build() and OS.has_feature("web"):
 		_publish_debug()
+
+
+func _single_line(text: String, size: int) -> Label:
+	var label := _line(text, size, display)
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return label
 
 
 func _line(text: String, size: int, font: Font) -> Label:
