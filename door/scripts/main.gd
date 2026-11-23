@@ -72,7 +72,8 @@ func _ready() -> void:
 	if shot_mode:
 		_run_shots()
 	elif OS.is_debug_build():
-		_maybe_web_card()
+		if not _maybe_debug_fight():
+			_maybe_web_card()
 
 
 func _font(path: String, weight: int) -> Font:
@@ -391,10 +392,10 @@ func _art_host(min_h: float) -> Control:
 	host.custom_minimum_size = Vector2(0, min_h)
 	host.clip_contents = true
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(Palette.PAPER.r, Palette.PAPER.g, Palette.PAPER.b, 0.0)
-	style.set_border_width_all(3)
+	style.bg_color = Color(Palette.INK_DEEP.r, Palette.INK_DEEP.g, Palette.INK_DEEP.b, 0.55)
+	style.set_border_width_all(4)
 	style.border_color = INK
-	style.set_corner_radius_all(6)
+	style.set_corner_radius_all(10)
 	style.shadow_color = Color(0.11, 0.2, 0.4, 0.18)
 	style.shadow_size = 6
 	style.shadow_offset = Vector2(3, 4)
@@ -530,13 +531,16 @@ func _button_style(primary: bool, hot: bool) -> StyleBoxFlat:
 	style.content_margin_right = 18
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
+	style.shadow_color = Color(0, 0, 0, 0.5)
+	style.shadow_size = 5
+	style.shadow_offset = Vector2(3, 5)
 	if primary:
 		style.bg_color = Palette.PANEL
-		style.set_border_width_all(3)
+		style.set_border_width_all(4)
 		style.border_color = BLOOD if hot else INK
 	else:
-		style.bg_color = Color(PAPER.r, PAPER.g, PAPER.b, 0.72) if hot else Color(PAPER.r, PAPER.g, PAPER.b, 0.35)
-		style.set_border_width_all(3)
+		style.bg_color = Palette.INK_DEEP if hot else Color(Palette.INK_DEEP.r, Palette.INK_DEEP.g, Palette.INK_DEEP.b, 0.92)
+		style.set_border_width_all(4)
 		style.border_color = BLOOD if hot else INK
 	return style
 
@@ -546,14 +550,21 @@ func _stat_row() -> HBoxContainer:
 	row.add_theme_constant_override("separation", 8)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for id in Game.STAT_ORDER:
-		var cell := VBoxContainer.new()
+		var cell := PanelContainer.new()
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		cell.alignment = BoxContainer.ALIGNMENT_CENTER
-		var number := _label("0", 58, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
+		var chip := _button_style(false, false)
+		chip.content_margin_top = 2
+		chip.content_margin_bottom = 2
+		chip.shadow_size = 0
+		cell.add_theme_stylebox_override("panel", chip)
+		var stack := VBoxContainer.new()
+		stack.alignment = BoxContainer.ALIGNMENT_CENTER
+		cell.add_child(stack)
+		var number := _label("0", 48, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
 		stat_numbers[id] = number
-		cell.add_child(number)
-		var name := _label(Game.stat_label(id), 30, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
-		cell.add_child(name)
+		stack.add_child(number)
+		var name := _label(Game.stat_label(id), 26, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
+		stack.add_child(name)
 		row.add_child(cell)
 	return row
 
@@ -800,6 +811,8 @@ func _on_choice(which: String) -> void:
 	Sfx.note_input()
 	Sfx.play("ui/pen", -4.0)
 	var reveal: Dictionary = Game.choose(which)
+	if OS.is_debug_build() and OS.has_feature("web"):
+		JavaScriptBridge.eval("window.DOOR_EVENT=%s;" % var_to_str("%s battle=%s" % [str(reveal.get("event_id", "")), str(reveal.get("battle", false))]), true)
 	if bool(reveal.get("battle", false)):
 		screens.battle.call("refresh")
 		_show_screen(screens.battle)
@@ -1017,6 +1030,27 @@ func _run_shots() -> void:
 	await get_tree().create_timer(0.35).timeout
 	await _shot("08-chapter")
 	get_tree().quit()
+
+
+func _maybe_debug_fight() -> bool:
+	if not OS.has_feature("web"):
+		return false
+	var href := str(JavaScriptBridge.eval("String(window.location.href)", true))
+	JavaScriptBridge.eval("window.DOOR_HREF = %s;" % var_to_str(href), true)
+	if "fight=1" not in href:
+		return false
+	JavaScriptBridge.eval("window.DOOR_STEP='choice';", true)
+	Game.best_weapon = "baguette"
+	Game.flat_medal = false
+	Game._save_meta()
+	Game.start_run(4)
+	Game.day = 8
+	if Game.by_id.has("window"):
+		Game.pending = Game.by_id["window"]
+	current = screens.day
+	_on_choice("a")
+	JavaScriptBridge.eval("window.DOOR_STEP='after';", true)
+	return true
 
 
 func _maybe_web_card() -> void:

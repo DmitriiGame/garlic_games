@@ -10,13 +10,34 @@ var cursed: Dictionary = {}
 
 
 func build(rng: RandomNumberGenerator) -> void:
-	for _attempt in 40:
+	for _attempt in 80:
 		_fill_clean(rng)
 		if find_runs().is_empty() and has_move():
 			cursed.clear()
 			return
-	_fill_clean(rng)
+	_force_playable()
 	cursed.clear()
+
+
+func _force_playable() -> void:
+	var other := "brains"
+	var attack := "baguette"
+	for r in ROWS:
+		for c in COLS:
+			grid[r][c] = "energy_drink" if (r + c) % 2 == 0 else "pot_lid"
+	var r0 := 1
+	var c0 := 1
+	for dr in 2:
+		for dc in 3:
+			grid[r0 + dr][c0 + dc] = other
+	grid[r0][c0] = attack
+	grid[r0][c0 + 1] = attack
+	grid[r0][c0 + 2] = other
+	grid[r0 + 1][c0 + 2] = attack
+	if find_runs().is_empty() and has_move():
+		return
+	grid[r0][c0 + 2] = attack
+	grid[r0 + 1][c0 + 2] = other
 
 
 func cell(r: int, c: int) -> String:

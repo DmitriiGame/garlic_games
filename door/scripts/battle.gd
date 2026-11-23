@@ -47,6 +47,7 @@ func start(owner: Node, spec: Dictionary) -> void:
 		_heal(2, false)
 	enemy = _make_enemy(spec)
 	log_line = "%s смотрит на вас. %s" % [enemy["name"], enemy["intent"]]
+	_ensure_board()
 
 
 func hero_max() -> int:
@@ -179,6 +180,7 @@ func _begin_player_turn() -> void:
 	if game.artifacts.has("sticking_plaster"):
 		_heal(2, true)
 	enemy["intent"] = _intent_text()
+	_ensure_board()
 
 
 func _trick_before() -> void:
@@ -301,6 +303,13 @@ func _hurt_enemy(amount: int) -> void:
 		minion_hp = maxi(0, minion_hp - left)
 	if int(enemy["hp"]) <= 0 and minion_hp <= 0:
 		_win()
+
+
+func _ensure_board() -> void:
+	if board.has_move():
+		return
+	board.build(rng)
+	log_line = "Поле перемешалось."
 
 
 func _hurt_hero(amount: int) -> void:

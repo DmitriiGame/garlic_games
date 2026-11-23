@@ -858,7 +858,7 @@ func battle_reward_text() -> String:
 	var reward: Dictionary = spec.get("reward", {})
 	var bits: Array[String] = []
 	for key in reward.keys():
-		bits.append("+%s %s" % [str(reward[key]), stat_label(str(key))])
+		bits.append("+%d %s" % [int(reward[key]), stat_label(str(key))])
 	var found := str(spec.get("weapon", ""))
 	if found != "":
 		bits.append("оружие")
