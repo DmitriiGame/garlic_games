@@ -10,6 +10,8 @@ signal finished(won: bool)
 var header: Label
 var story: Label
 var photo: TextureRect
+var card_name: Label
+var ink_mat: ShaderMaterial
 var hero_fill: ColorRect
 var hero_label: Label
 var shield_label: Label
@@ -29,6 +31,13 @@ var selected: Vector2i = Vector2i(-1, -1)
 var pressing := false
 var drag_from := Vector2i(-1, -1)
 var last_gesture_ms := 0
+var gesture_pointer := -2
+var gesture_from := Vector2i(-1, -1)
+var gesture_origin := Vector2.ZERO
+var gesture_fired := false
+var cell_span := 72.0
+var last_touch_ms := 0
+var last_kind := ""
 var display: Font
 var body: Font
 
@@ -85,7 +94,7 @@ func _story_card() -> Control:
 	inner.add_theme_constant_override("separation", 6)
 	card.add_child(inner)
 	var art := Control.new()
-	art.custom_minimum_size = Vector2(0, 168)
+	art.custom_minimum_size = Vector2(0, 210)
 	art.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	art.clip_contents = false
 	inner.add_child(art)
@@ -94,12 +103,20 @@ func _story_card() -> Control:
 	photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://shaders/ink_photo.gdshader")
-	mat.set_shader_parameter("ink", Palette.INK)
-	mat.set_shader_parameter("marker", Palette.MARKER)
-	photo.material = mat
+	photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	ink_mat = ShaderMaterial.new()
+	ink_mat.shader = preload("res://shaders/ink_photo.gdshader")
+	ink_mat.set_shader_parameter("ink", Palette.INK)
+	ink_mat.set_shader_parameter("marker", Palette.MARKER)
 	art.add_child(photo)
+	card_name = _line("", 28, display)
+	card_name.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	card_name.offset_left = 12
+	card_name.offset_top = -44
+	card_name.offset_right = 420
+	card_name.offset_bottom = -8
+	card_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.add_child(card_name)
 	var stamp := _line("БОЙ", 36, display)
 	stamp.add_theme_color_override("font_color", Palette.MARKER)
 	stamp.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -112,7 +129,7 @@ func _story_card() -> Control:
 	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art.add_child(stamp)
 	story = _line("", 22, body)
-	story.max_lines_visible = 3
+	story.max_lines_visible = 2
 	inner.add_child(story)
 	return card
 
@@ -226,6 +243,7 @@ func _board_tray() -> Control:
 	var tray := Panel.new()
 	tray.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tray.size_flags_stretch_ratio = 1.4
+	tray.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tray.add_theme_stylebox_override("panel", _frame(Color("101614"), Palette.INK, 4))
 	var inset := MarginContainer.new()
 	inset.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -233,6 +251,7 @@ func _board_tray() -> Control:
 		inset.add_theme_constant_override("margin_" + side, 10)
 	tray.add_child(inset)
 	grid = GridContainer.new()
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	grid.columns = 6
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -268,9 +287,7 @@ func refresh() -> void:
 		return
 	header.text = Game.header_text()
 	story.text = Game.battle_blurb()
-	var image := str(Game.last_reveal.get("image", ""))
-	if image != "" and ResourceLoader.exists(image):
-		photo.texture = load(image)
+	_show_enemy_card(fight)
 	var hero_max := maxi(1, int(fight.hero_max()))
 	hero_label.text = "%d" % int(fight.hp)
 	shield_label.text = "щит %d" % int(fight.shield)
@@ -310,37 +327,142 @@ func refresh() -> void:
 	call_deferred("_publish_debug")
 
 
+func _show_enemy_card(fight) -> void:
+	var enemy_id := str(fight.enemy.get("id", ""))
+	var subtype := str(fight.enemy.get("subtype", "a"))
+	card_name.text = str(fight.enemy.get("name", ""))
+	if enemy_id == "pigeon":
+		photo.material = ink_mat
+		photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		var image := str(Game.last_reveal.get("image", ""))
+		photo.texture = load(image) if image != "" and ResourceLoader.exists(image) else null
+		return
+	photo.material = null
+	photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var sprite := _portrait("%s_%s" % [enemy_id, subtype])
+	if sprite == null:
+		photo.material = ink_mat
+		photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		var fallback := str(Game.last_reveal.get("image", ""))
+		photo.texture = load(fallback) if fallback != "" and ResourceLoader.exists(fallback) else null
+	else:
+		photo.texture = sprite
+
+
 func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree() or Game.battle == null or Game.battle.over:
 		return
-	if not (event is InputEventMouseButton):
+	if event is InputEventScreenTouch:
+		_on_screen_touch(event as InputEventScreenTouch)
 		return
-	var mouse := event as InputEventMouseButton
-	if mouse.button_index != MOUSE_BUTTON_LEFT:
+	if event is InputEventScreenDrag:
+		_on_screen_drag(event as InputEventScreenDrag)
 		return
-	if mouse.pressed:
-		var cell := _cell_at(mouse.position)
+	if Time.get_ticks_msec() < last_touch_ms:
+		if event is InputEventMouseButton or event is InputEventMouseMotion:
+			get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		_on_mouse_button(event as InputEventMouseButton)
+	elif event is InputEventMouseMotion and gesture_pointer == -1:
+		_move((event as InputEventMouseMotion).position)
+
+
+func _on_screen_touch(touch: InputEventScreenTouch) -> void:
+	var pos := _viewport_point(touch.position)
+	if touch.pressed:
+		var cell := _cell_at(pos)
 		if cell.x < 0:
-			pressing = false
+			return
+		if _begin(cell, pos, touch.index, "touch"):
+			get_viewport().set_input_as_handled()
+		return
+	if touch.index != gesture_pointer:
+		return
+	_end(_viewport_point(touch.position))
+	get_viewport().set_input_as_handled()
+
+
+func _on_screen_drag(drag: InputEventScreenDrag) -> void:
+	if drag.index != gesture_pointer:
+		return
+	_move(_viewport_point(drag.position))
+	get_viewport().set_input_as_handled()
+
+
+func _on_mouse_button(mouse: InputEventMouseButton) -> void:
+	var pos := _viewport_point(mouse.position)
+	if mouse.pressed:
+		var cell := _cell_at(pos)
+		if cell.x < 0:
 			return
 		if Time.get_ticks_msec() - last_gesture_ms < 90:
-			pressing = false
 			get_viewport().set_input_as_handled()
 			return
-		pressing = true
-		drag_from = cell
-		refresh()
-		get_viewport().set_input_as_handled()
+		if _begin(cell, pos, -1, "mouse"):
+			pressing = true
+			get_viewport().set_input_as_handled()
 		return
-	if not pressing:
+	if gesture_pointer != -1:
 		return
 	pressing = false
-	last_gesture_ms = Time.get_ticks_msec()
-	var landed := _cell_at(mouse.position)
-	var origin := drag_from
-	drag_from = Vector2i(-1, -1)
+	_end(pos)
 	get_viewport().set_input_as_handled()
-	_release(origin, landed)
+
+
+func _begin(cell: Vector2i, pos: Vector2, pointer: int, kind: String) -> bool:
+	_update_cell_span()
+	gesture_pointer = pointer
+	gesture_from = cell
+	gesture_origin = pos
+	gesture_fired = false
+	drag_from = cell
+	last_kind = kind
+	if pointer >= 0:
+		last_touch_ms = Time.get_ticks_msec() + 500
+	refresh()
+	return true
+
+
+func _move(pos: Vector2) -> void:
+	if gesture_fired or gesture_from.x < 0:
+		return
+	var delta := pos - gesture_origin
+	var limit := cell_span * 0.33
+	if absf(delta.x) < limit and absf(delta.y) < limit:
+		return
+	var dest := gesture_from
+	if absf(delta.x) >= absf(delta.y):
+		dest.y += 1 if delta.x > 0.0 else -1
+	else:
+		dest.x += 1 if delta.y > 0.0 else -1
+	if dest.x < 0 or dest.y < 0 or dest.x >= 5 or dest.y >= 6:
+		return
+	gesture_fired = true
+	last_gesture_ms = Time.get_ticks_msec()
+	_commit_swap(gesture_from, dest)
+
+
+func _end(pos: Vector2) -> void:
+	var from := gesture_from
+	var fired := gesture_fired
+	gesture_pointer = -2
+	gesture_from = Vector2i(-1, -1)
+	drag_from = Vector2i(-1, -1)
+	gesture_fired = false
+	if fired or from.x < 0:
+		refresh()
+		return
+	_release(from, _cell_at(pos))
+
+
+func _update_cell_span() -> void:
+	if cell_panels.is_empty():
+		return
+	var size := (cell_panels[0] as Control).get_global_rect().size
+	var span := minf(size.x, size.y)
+	if span >= 8.0:
+		cell_span = span
 
 
 func _release(origin: Vector2i, landed: Vector2i) -> void:
@@ -402,11 +524,37 @@ func _leave() -> void:
 	finished.emit(Game.battle.victory)
 
 
+func _viewport_point(point: Vector2) -> Vector2:
+	if _hits_board(point):
+		return point
+	var win := Vector2(DisplayServer.window_get_size())
+	var view := get_viewport().get_visible_rect().size
+	if win.x > 2.0 and view.x > 2.0 and (absf(win.x - view.x) > 2.0 or absf(win.y - view.y) > 2.0):
+		var scaled := Vector2(point.x / win.x * view.x, point.y / win.y * view.y)
+		if _hits_board(scaled):
+			return scaled
+	return point
+
+
+func _hits_board(point: Vector2) -> bool:
+	if grid != null and grid.get_global_rect().grow(12.0).has_point(point):
+		return true
+	return _cell_at(point).x >= 0
+
+
 func _cell_at(point: Vector2) -> Vector2i:
+	var nearest := Vector2i(-1, -1)
+	var nearest_d := 1.0e12
 	for i in cell_panels.size():
-		var panel: Control = cell_panels[i]
-		if panel.get_global_rect().has_point(point):
+		var rect := (cell_panels[i] as Control).get_global_rect()
+		if rect.has_point(point):
 			return Vector2i(i / 6, i % 6)
+		var dist := rect.get_center().distance_squared_to(point)
+		if dist < nearest_d:
+			nearest_d = dist
+			nearest = Vector2i(i / 6, i % 6)
+	if grid != null and grid.get_global_rect().grow(12.0).has_point(point):
+		return nearest
 	return Vector2i(-1, -1)
 
 
@@ -432,7 +580,7 @@ func _publish_debug() -> void:
 		log = str(fight.log_line).replace("'", "").replace("\n", " ")
 		hp = int(fight.hp)
 		over = bool(fight.over)
-	var js := "window.DOOR_CELLS='%s';window.DOOR_LOG='%s';window.DOOR_HP=%d;window.DOOR_OVER=%s;" % ["|".join(bits), log, hp, "true" if over else "false"]
+	var js := "window.DOOR_CELLS='%s';window.DOOR_LOG='%s';window.DOOR_HP=%d;window.DOOR_OVER=%s;window.DOOR_KIND='%s';" % ["|".join(bits), log, hp, "true" if over else "false", last_kind]
 	JavaScriptBridge.eval(js, true)
 
 
