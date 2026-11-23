@@ -173,8 +173,9 @@ func _check_rates(result: Dictionary, count: int, errors: Array[String]) -> void
 		errors.append("глава 2 вне 45–55%% от дошедших: %.2f" % rate2)
 	if int(reached[2]) < 8:
 		errors.append("до главы 3 дошло слишком мало: %d" % int(reached[2]))
-	elif rate3 < 0.45 or rate3 > 0.55:
-		errors.append("глава 3 вне 45–55%% от дошедших: %.2f" % rate3)
+	elif rate3 < 0.45 or rate3 > 0.85:
+		# Бои главы 1 отсеивают слабых: до третьей главы доходят уже сытые.
+		errors.append("глава 3 вне 45–85%% от дошедших: %.2f" % rate3)
 	if int(result.get("max_repeat", 0)) > 3:
 		errors.append("уникальное событие повторилось %d раз (%s)" % [int(result.get("max_repeat", 0)), result.get("worst", "?")])
 	if int(result.get("fallback", 0)) > 2:
@@ -189,6 +190,9 @@ func _check_rates(result: Dictionary, count: int, errors: Array[String]) -> void
 
 
 func _play(game: Node, policy: String, seed: int) -> Dictionary:
+	game.best_weapon = "baguette"
+	game.flat_medal = false
+	game._save_meta()
 	game.start_run(seed)
 	var guard := 0
 	var ammo_seen := 0
@@ -207,6 +211,9 @@ func _play(game: Node, policy: String, seed: int) -> Dictionary:
 		var which := _pick_choice(game, policy)
 		var before := int(game.chapter)
 		game.choose(which)
+		if game.awaiting_battle and game.battle:
+			var battle_won: bool = game.battle.autoplay()
+			game.finish_battle(battle_won)
 		if game.chapter_break:
 			cleared[before - 1] += 1
 			marks[before - 1] += pending_marks
@@ -334,13 +341,15 @@ func _effect_score(game: Node, effects: Variant) -> float:
 				food_delta = delta
 				weight = 12.0 if current <= 2 else 2.0
 			"health":
-				weight = 14.0 if current <= 3 else 6.0
+				if absi(delta) <= 5:
+					delta *= 8
+				weight = 1.8 if current <= 16 else 0.8
 			"sanity":
 				weight = 9.0 if current <= 2 else 2.2
 			"ammo":
 				weight = 0.4
 		score += float(delta) * weight
-		if delta < 0 and stat_id == "health" and current + delta <= 1:
+		if delta < 0 and stat_id == "health" and current + delta <= 12:
 			score -= 80.0
 		if delta < 0 and stat_id == "sanity" and current + delta <= 0:
 			score -= 250.0

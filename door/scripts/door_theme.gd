@@ -1,11 +1,12 @@
 extends RefCounted
 ## Палитра «Ночной бункер». Меняй цвета здесь — интерфейс и шейдеры читают их.
 
-const PAPER := Color("d9ddd2")
-const PAPER_SHADE := Color("cfd5c8")
-const PAPER_ON_INK := Color("eef2e8")
-const INK := Color("1f4a42")
+const PAPER := Color("1a211e")
+const PAPER_SHADE := Color("121816")
+const PAPER_ON_INK := Color("efe6d4")
+const INK := Color("d5e0d6")
 const MARKER := Color("c04538")
-const MUTED := Color("5a6b62")
-const DESK := Color("121816")
-const INK_DEEP := Color("17362f")
+const MUTED := Color("8d9c94")
+const DESK := Color("0c100e")
+const INK_DEEP := Color("24302b")
+const PANEL := Color("24302b")

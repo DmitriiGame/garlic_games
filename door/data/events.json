@@ -19,8 +19,8 @@
 			},
 			"health": {
 				"label": "здоровье",
-				"start": 5,
-				"max": 5
+				"start": 40,
+				"max": 40
 			},
 			"sanity": {
 				"label": "рассудок",
@@ -312,7 +312,13 @@
 				"max_day": 10,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "cockroach",
+				"reward": {
+					"food": 1
+				}
+			}
 		},
 		{
 			"id": "dog_warns",
@@ -572,7 +578,14 @@
 				"max_day": 12,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "rat",
+				"weapon": "pan",
+				"reward": {
+					"food": 2
+				}
+			}
 		},
 		{
 			"id": "basement_smell",
@@ -640,7 +653,13 @@
 				"max_day": 14,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "pigeon",
+				"reward": {
+					"sanity": 1
+				}
+			}
 		},
 		{
 			"id": "radio_name",
@@ -743,7 +762,13 @@
 				"max_day": 12,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "pigeon",
+				"reward": {
+					"sanity": 1
+				}
+			}
 		},
 		{
 			"id": "window_fingers",
@@ -816,7 +841,13 @@
 				"max_day": 16,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "rat",
+				"reward": {
+					"food": 1
+				}
+			}
 		},
 		{
 			"id": "kid_fever",
@@ -928,7 +959,13 @@
 				"max_day": 20,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "rat",
+				"reward": {
+					"sanity": 1
+				}
+			}
 		},
 		{
 			"id": "mirror_day",
@@ -1012,7 +1049,13 @@
 				"max_day": 24,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "small_zombie",
+				"reward": {
+					"food": 2
+				}
+			}
 		},
 		{
 			"id": "cult_due",
@@ -1098,7 +1141,15 @@
 				"max_day": 20,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "zombie_dog",
+				"reward": {
+					"ammo": 2,
+					"health": 1
+				},
+				"weapon": "crowbar"
+			}
 		},
 		{
 			"id": "evac_lie",
@@ -1160,7 +1211,13 @@
 				"max_day": 26,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "cockroach",
+				"reward": {
+					"food": 1
+				}
+			}
 		},
 		{
 			"id": "day27",
@@ -1208,7 +1265,14 @@
 				],
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "zombie_dog",
+				"reward": {
+					"ammo": 1,
+					"health": 1
+				}
+			}
 		},
 		{
 			"id": "cat_food",
@@ -1312,7 +1376,14 @@
 				"max_day": 28,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "small_zombie",
+				"reward": {
+					"ammo": 1,
+					"health": 1
+				}
+			}
 		},
 		{
 			"id": "quiet",
@@ -1446,7 +1517,13 @@
 				"max_day": 9,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "cockroach",
+				"reward": {
+					"ammo": 1
+				}
+			}
 		},
 		{
 			"id": "mailbox_rounds",
@@ -1622,7 +1699,14 @@
 				"max_day": 26,
 				"chapter": 1
 			},
-			"chapter": 1
+			"chapter": 1,
+			"battle": {
+				"enemy": "small_zombie",
+				"reward": {
+					"food": 1,
+					"health": 1
+				}
+			}
 		},
 		{
 			"id": "window_scare",
@@ -1826,7 +1910,16 @@
 					"left_flat"
 				]
 			},
-			"priority": true
+			"priority": true,
+			"battle": {
+				"enemy": "uber_cop",
+				"reward": {
+					"ammo": 2,
+					"food": 2,
+					"health": 1
+				},
+				"weapon": "rifle"
+			}
 		},
 		{
 			"id": "courier_cod",
