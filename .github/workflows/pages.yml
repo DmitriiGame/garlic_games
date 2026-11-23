@@ -1,5 +1,6 @@
 name: Deploy to GitHub Pages
 
+# Retrigger: the #15 deploy uploaded its artifact, then GitHub reported it missing.
 on:
   push:
     branches: ["main"]
