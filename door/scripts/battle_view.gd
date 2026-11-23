@@ -74,7 +74,7 @@ func setup(display_font: Font, body_font: Font) -> void:
 	leave.custom_minimum_size = Vector2(0, 72)
 	leave.add_theme_font_override("font", display)
 	leave.add_theme_font_size_override("font_size", 32)
-	_paint_button(leave, true)
+	_paint_button(leave, Palette.PANEL, Palette.INK)
 	leave.pressed.connect(_leave)
 	box.add_child(leave)
 
@@ -185,7 +185,17 @@ func _spell_row() -> Control:
 		button.text = ""
 		button.custom_minimum_size = Vector2(0, 78)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_paint_button(button, false)
+		var fills := {
+			"shot": Color("3a2420"),
+			"grenade": Color("3a3018"),
+			"kit": Color("1e3324"),
+		}
+		var borders := {
+			"shot": Palette.MARKER,
+			"grenade": Color("e2b84a"),
+			"kit": Color("7dba8a"),
+		}
+		_paint_button(button, fills[item[0]], borders[item[0]])
 		var inner := HBoxContainer.new()
 		inner.set_anchors_preset(Control.PRESET_FULL_RECT)
 		inner.offset_left = 8
@@ -218,25 +228,27 @@ func _spell_row() -> Control:
 		button.pressed.connect(func() -> void: _cast(spell_id))
 		row.add_child(button)
 		spell_buttons[spell_id] = button
-	var energy := VBoxContainer.new()
-	energy.custom_minimum_size = Vector2(118, 0)
-	energy_label = _line("0/10", 20, display)
-	energy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	energy.add_child(energy_label)
-	var segs := GridContainer.new()
-	segs.columns = 5
-	segs.add_theme_constant_override("h_separation", 3)
-	segs.add_theme_constant_override("v_separation", 3)
+	var wrap := VBoxContainer.new()
+	wrap.add_theme_constant_override("separation", 6)
+	wrap.add_child(row)
+	var energy := HBoxContainer.new()
+	energy.add_theme_constant_override("separation", 4)
+	var bolt := _line("энергия", 18, display)
+	bolt.custom_minimum_size = Vector2(92, 0)
+	energy.add_child(bolt)
 	for _i in 10:
 		var seg := ColorRect.new()
-		seg.custom_minimum_size = Vector2(18, 14)
-		seg.color = Palette.INK_DEEP
+		seg.custom_minimum_size = Vector2(0, 22)
+		seg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		seg.color = Color("3a332c")
 		seg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		segs.add_child(seg)
+		energy.add_child(seg)
 		energy_segs.append(seg)
-	energy.add_child(segs)
-	row.add_child(energy)
-	return row
+	energy_label = _line("0/10", 20, display)
+	energy_label.custom_minimum_size = Vector2(52, 0)
+	energy.add_child(energy_label)
+	wrap.add_child(energy)
+	return wrap
 
 
 func _board_tray() -> Control:
@@ -305,7 +317,7 @@ func refresh() -> void:
 	energy_label.text = "%d/10" % energy
 	for i in energy_segs.size():
 		var seg: ColorRect = energy_segs[i]
-		seg.color = Color("e2b84a") if i < energy else Palette.INK_DEEP
+		seg.color = Color("e2b84a") if i < energy else Color("3a332c")
 	footer.text = "%s\n%s" % [fight.log_line, Game.battle_reward_text()]
 	leave.visible = fight.over
 	leave.disabled = not fight.over
@@ -603,13 +615,13 @@ func _portrait(kind: String) -> Texture2D:
 	return null
 
 
-func _paint_button(button: Button, primary: bool) -> void:
-	button.add_theme_stylebox_override("normal", _frame(Palette.PANEL if primary else Palette.INK_DEEP, Palette.INK, 4))
-	button.add_theme_stylebox_override("hover", _frame(Palette.PANEL, Palette.MARKER, 4))
-	button.add_theme_stylebox_override("pressed", _frame(Palette.PANEL, Palette.MARKER, 4))
-	button.add_theme_stylebox_override("disabled", _frame(Color(Palette.INK_DEEP.r, Palette.INK_DEEP.g, Palette.INK_DEEP.b, 0.45), Palette.MUTED, 3))
-	button.add_theme_stylebox_override("focus", _frame(Palette.PANEL, Palette.INK, 4))
-	button.add_theme_color_override("font_color", Palette.PAPER_ON_INK if primary else Palette.INK)
+func _paint_button(button: Button, fill: Color, border: Color) -> void:
+	button.add_theme_stylebox_override("normal", _frame(fill, border, 4))
+	button.add_theme_stylebox_override("hover", _frame(fill.lightened(0.08), Palette.MARKER, 4))
+	button.add_theme_stylebox_override("pressed", _frame(fill.darkened(0.08), Palette.MARKER, 4))
+	button.add_theme_stylebox_override("disabled", _frame(Color(fill.r, fill.g, fill.b, 0.45), Palette.MUTED, 3))
+	button.add_theme_stylebox_override("focus", _frame(fill, border, 4))
+	button.add_theme_color_override("font_color", Palette.PAPER_ON_INK)
 	button.add_theme_color_override("font_hover_color", Palette.PAPER_ON_INK)
 	button.add_theme_color_override("font_disabled_color", Palette.MUTED)
 
@@ -619,7 +631,7 @@ func _frame(fill: Color, border: Color, width: int) -> StyleBoxFlat:
 	style.bg_color = fill
 	style.set_border_width_all(width)
 	style.border_color = border
-	style.set_corner_radius_all(10)
+	style.set_corner_radius_all(3)
 	style.shadow_color = Color(0, 0, 0, 0.45)
 	style.shadow_size = 4
 	style.shadow_offset = Vector2(3, 4)
@@ -632,10 +644,10 @@ func _frame(fill: Color, border: Color, width: int) -> StyleBoxFlat:
 
 func _cell_style(hot: bool, cursed: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("1c2622")
-	style.set_corner_radius_all(8)
-	style.set_border_width_all(5 if hot else 3)
-	style.border_color = Palette.MARKER if hot or cursed else Color("3d4f48")
+	style.bg_color = Color("14110f")
+	style.set_corner_radius_all(2)
+	style.set_border_width_all(4 if hot else 2)
+	style.border_color = Palette.MARKER if hot or cursed else Color("6d6254")
 	return style
 
 

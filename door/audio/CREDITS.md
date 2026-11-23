@@ -61,4 +61,16 @@
 
 Спрайты врагов (`art/mobs/`) и фишек (`art/tiles/`) нарисовал владелец игры (с помощью ИИ). Это наши собственные картинки, не чужой ассет-пак. Голубь в бою пока берётся из уже существующей сцены `art/scenes/pigeon.webp`.
 
-Значки заклинаний `art/ui/spell_shot.png`, `spell_grenade.png`, `spell_kit.png` нарисованы для этой игры, без чужих паков. Рамки, подложки клеток и полоски здоровья собраны из палитры «Ночной бункер» в коде, отдельных текстур нет.
+Значки заклинаний `art/ui/spell_shot.png`, `spell_grenade.png`, `spell_kit.png` и значки ресурсов `art/ui/stat_food.png`, `stat_health.png`, `stat_sanity.png`, `stat_ammo.png` нарисованы для этой игры, без чужих паков. Рамки, подложки клеток и полоски здоровья собраны из палитры «Ночной бункер» в коде, отдельных текстур нет.
+
+## Шрифты
+
+| Файл | Лицензия | Автор |
+| --- | --- | --- |
+| `fonts/Caveat.ttf` | OFL 1.1, `fonts/OFL-Caveat.txt` | Impallari Type |
+| `fonts/Pangolin-Regular.ttf` | OFL 1.1, `fonts/OFL-Pangolin.txt` | Kevin Burke |
+| `fonts/Neucha.ttf` | OFL 1.1, `fonts/OFL-Neucha.txt` | Jovanny Lemonad |
+| `fonts/Manrope.ttf` | OFL 1.1, `fonts/OFL-Manrope.txt` | Michael Sharanda |
+| `fonts/Unbounded.ttf` | OFL 1.1, `fonts/OFL-Unbounded.txt` | Grigory Mashkov |
+
+Текст дней идёт Neucha, заголовки и кнопки — Caveat. Оба шрифта с кириллицей, OFL.

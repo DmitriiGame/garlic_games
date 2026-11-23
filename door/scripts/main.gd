@@ -66,7 +66,7 @@ var shot_mode: bool = false
 func _ready() -> void:
 	shot_mode = OS.get_environment("DOOR_SHOT") != ""
 	display = _font("res://fonts/Caveat.ttf", 700)
-	body = load("res://fonts/Pangolin-Regular.ttf")
+	body = load("res://fonts/Neucha.ttf")
 	_build()
 	_show_screen(screens.title)
 	if shot_mode:
@@ -239,14 +239,22 @@ func _build_day() -> Control:
 	day_photo = _photo_in(art)
 	day_stamp = _stamp(art)
 	box.add_child(art)
-	day_text = _rich(30)
+	var text_panel := PanelContainer.new()
+	text_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	text_panel.size_flags_stretch_ratio = 0.85
+	var text_style := _button_style(false, false)
+	text_style.border_width_left = 3
+	text_style.shadow_size = 0
+	text_style.bg_color = Color(0, 0, 0, 0.35)
+	text_panel.add_theme_stylebox_override("panel", text_style)
+	day_text = _rich(28)
 	day_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	day_text.size_flags_stretch_ratio = 0.9
 	day_text.gui_input.connect(func(ev: InputEvent) -> void:
 		if ev is InputEventMouseButton and ev.pressed:
 			_skip_type()
 	)
-	box.add_child(day_text)
+	text_panel.add_child(day_text)
+	box.add_child(text_panel)
 	choice_a = _button("…", true)
 	choice_a.pressed.connect(func() -> void: _on_choice("a"))
 	choice_b = _button("…", false)
@@ -392,10 +400,10 @@ func _art_host(min_h: float) -> Control:
 	host.custom_minimum_size = Vector2(0, min_h)
 	host.clip_contents = true
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(Palette.INK_DEEP.r, Palette.INK_DEEP.g, Palette.INK_DEEP.b, 0.55)
-	style.set_border_width_all(4)
+	style.bg_color = Color("120f0d")
+	style.set_border_width_all(6)
 	style.border_color = INK
-	style.set_corner_radius_all(10)
+	style.set_corner_radius_all(2)
 	style.shadow_color = Color(0.11, 0.2, 0.4, 0.18)
 	style.shadow_size = 6
 	style.shadow_offset = Vector2(3, 4)
@@ -526,45 +534,65 @@ func _button(text: String, primary: bool, height: int = 92) -> Button:
 
 func _button_style(primary: bool, hot: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.set_corner_radius_all(10)
-	style.content_margin_left = 18
-	style.content_margin_right = 18
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
-	style.shadow_color = Color(0, 0, 0, 0.5)
-	style.shadow_size = 5
-	style.shadow_offset = Vector2(3, 5)
-	if primary:
-		style.bg_color = Palette.PANEL
-		style.set_border_width_all(4)
-		style.border_color = BLOOD if hot else INK
-	else:
-		style.bg_color = Palette.INK_DEEP if hot else Color(Palette.INK_DEEP.r, Palette.INK_DEEP.g, Palette.INK_DEEP.b, 0.92)
-		style.set_border_width_all(4)
-		style.border_color = BLOOD if hot else INK
+	style.shadow_color = Color(0, 0, 0, 0.55)
+	style.shadow_size = 3
+	style.shadow_offset = Vector2(2, 3)
+	style.bg_color = Color("2a211c") if primary else Color("1a1613")
+	style.border_width_left = 8
+	style.border_width_top = 3
+	style.border_width_right = 3
+	style.border_width_bottom = 3
+	style.border_color = BLOOD if hot or primary else INK
 	return style
 
 
 func _stat_row() -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 6)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var icons := {
+		"food": "res://art/ui/stat_food.png",
+		"health": "res://art/ui/stat_health.png",
+		"sanity": "res://art/ui/stat_sanity.png",
+		"ammo": "res://art/ui/stat_ammo.png",
+	}
 	for id in Game.STAT_ORDER:
 		var cell := PanelContainer.new()
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var chip := _button_style(false, false)
-		chip.content_margin_top = 2
-		chip.content_margin_bottom = 2
+		chip.border_width_left = 3
+		chip.content_margin_left = 6
+		chip.content_margin_right = 4
+		chip.content_margin_top = 4
+		chip.content_margin_bottom = 4
 		chip.shadow_size = 0
 		cell.add_theme_stylebox_override("panel", chip)
+		var line := HBoxContainer.new()
+		line.alignment = BoxContainer.ALIGNMENT_CENTER
+		line.add_theme_constant_override("separation", 4)
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(28, 28)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon_path := str(icons.get(id, ""))
+		if icon_path != "" and ResourceLoader.exists(icon_path):
+			icon.texture = load(icon_path)
+		line.add_child(icon)
 		var stack := VBoxContainer.new()
 		stack.alignment = BoxContainer.ALIGNMENT_CENTER
-		cell.add_child(stack)
-		var number := _label("0", 48, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
+		var number := _label("0", 32, INK, display, HORIZONTAL_ALIGNMENT_LEFT)
 		stat_numbers[id] = number
 		stack.add_child(number)
-		var name := _label(Game.stat_label(id), 26, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
+		var name := _label(Game.stat_label(id), 16, MUTED, body, HORIZONTAL_ALIGNMENT_LEFT)
 		stack.add_child(name)
+		line.add_child(stack)
+		cell.add_child(line)
 		row.add_child(cell)
 	return row
 
