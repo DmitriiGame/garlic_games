@@ -65,7 +65,8 @@ var shot_mode: bool = false
 
 func _ready() -> void:
 	shot_mode = OS.get_environment("DOOR_SHOT") != ""
-	display = _font("res://fonts/Caveat.ttf", 700)
+	var unbounded := load("res://fonts/Unbounded.ttf") as Font
+	display = unbounded if unbounded != null else _font("res://fonts/Caveat.ttf", 700)
 	body = load("res://fonts/Neucha.ttf")
 	_build()
 	_show_screen(screens.title)
@@ -402,7 +403,7 @@ func _art_host(min_h: float) -> Control:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color("120f0d")
 	style.set_border_width_all(6)
-	style.border_color = INK
+	style.border_color = Palette.RUST
 	style.set_corner_radius_all(2)
 	style.shadow_color = Color(0.11, 0.2, 0.4, 0.18)
 	style.shadow_size = 6
@@ -547,7 +548,7 @@ func _button_style(primary: bool, hot: bool) -> StyleBoxFlat:
 	style.border_width_top = 3
 	style.border_width_right = 3
 	style.border_width_bottom = 3
-	style.border_color = BLOOD if hot or primary else INK
+	style.border_color = Palette.RUST
 	return style
 
 

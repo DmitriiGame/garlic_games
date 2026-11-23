@@ -8,7 +8,11 @@ const Palette := preload("res://scripts/door_theme.gd")
 signal finished(won: bool)
 
 var header: Label
+var food_label: Label
+var ammo_label: Label
 var story: Label
+var mob_card: Control
+var animating := false
 var photo: TextureRect
 var card_name: Label
 var ink_mat: ShaderMaterial
@@ -57,17 +61,14 @@ func setup(display_font: Font, body_font: Font) -> void:
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	margin.add_child(box)
 
-	header = _line("", 26, display)
-	box.add_child(header)
-	box.add_child(_story_card())
-	box.add_child(_hero_row())
+	box.add_child(_top_bar())
+	mob_card = _story_card()
+	box.add_child(mob_card)
+	box.add_child(_text_box())
 	box.add_child(_spell_row())
 	box.add_child(_enemy_row())
 	box.add_child(_board_tray())
-	intent = _line("", 22, body)
-	box.add_child(intent)
-	footer = _line("", 22, body)
-	box.add_child(footer)
+	box.add_child(_reward_bar())
 	leave = Button.new()
 	leave.text = "Дальше"
 	leave.visible = false
@@ -83,7 +84,7 @@ func _story_card() -> Control:
 	var card := Panel.new()
 	card.custom_minimum_size = Vector2(0, 250)
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	card.add_theme_stylebox_override("panel", _frame(Palette.INK_DEEP, Palette.MARKER, 4))
+	card.add_theme_stylebox_override("panel", _frame(Color("14110f"), Palette.RUST, 4))
 	card.clip_contents = true
 	var inner := VBoxContainer.new()
 	inner.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -128,10 +129,79 @@ func _story_card() -> Control:
 	stamp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art.add_child(stamp)
+	return card
+
+
+func _top_bar() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	header = _line("", 22, display)
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(header)
+	row.add_child(_icon("res://art/ui/stat_health.png"))
+	hero_label = _line("40", 22, display)
+	row.add_child(hero_label)
+	var life := _bar()
+	hero_fill = life[1]
+	hero_fill.color = Palette.MARKER
+	life[0].size_flags_horizontal = Control.SIZE_SHRINK_END
+	life[0].custom_minimum_size = Vector2(72, 16)
+	row.add_child(life[0])
+	shield_label = _line("0", 18, display)
+	row.add_child(shield_label)
+	row.add_child(_icon("res://art/ui/stat_food.png"))
+	food_label = _line("0", 22, display)
+	row.add_child(food_label)
+	row.add_child(_icon("res://art/ui/stat_ammo.png"))
+	ammo_label = _line("0", 22, display)
+	row.add_child(ammo_label)
+	return row
+
+
+func _text_box() -> Control:
+	var panel := Panel.new()
+	panel.add_theme_stylebox_override("panel", _frame(Color("14110f"), Palette.RUST, 3))
+	panel.custom_minimum_size = Vector2(0, 72)
 	story = _line("", 22, body)
 	story.max_lines_visible = 2
-	inner.add_child(story)
-	return card
+	story.set_anchors_preset(Control.PRESET_FULL_RECT)
+	story.offset_left = 12
+	story.offset_top = 8
+	story.offset_right = -12
+	story.offset_bottom = -8
+	panel.add_child(story)
+	return panel
+
+
+func _reward_bar() -> Control:
+	var panel := Panel.new()
+	panel.custom_minimum_size = Vector2(0, 64)
+	panel.add_theme_stylebox_override("panel", _frame(Color("14110f"), Palette.RUST, 3))
+	var row := HBoxContainer.new()
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 10
+	row.offset_top = 8
+	row.offset_right = -10
+	row.offset_bottom = -8
+	row.add_theme_constant_override("separation", 8)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(_icon("res://art/ui/door.png"))
+	footer = _line("", 20, display)
+	footer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(footer)
+	panel.add_child(row)
+	return panel
+
+
+func _icon(path: String) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(28, 28)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if ResourceLoader.exists(path):
+		icon.texture = load(path)
+	return icon
 
 
 func _hero_row() -> Control:
@@ -162,11 +232,13 @@ func _enemy_row() -> Control:
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", 4)
-	enemy_name = _line("Враг", 24, display)
+	enemy_name = _line("Враг: 0/0", 22, display)
 	col.add_child(enemy_name)
+	intent = _line("", 18, body)
+	col.add_child(intent)
 	var bar := _bar()
 	enemy_fill = bar[1]
-	enemy_fill.color = Color("e7d7b1")
+	enemy_fill.color = Palette.MARKER
 	col.add_child(bar[0])
 	row.add_child(col)
 	return row
@@ -233,14 +305,12 @@ func _spell_row() -> Control:
 	wrap.add_child(row)
 	var energy := HBoxContainer.new()
 	energy.add_theme_constant_override("separation", 4)
-	var bolt := _line("энергия", 18, display)
-	bolt.custom_minimum_size = Vector2(92, 0)
-	energy.add_child(bolt)
+	energy.add_child(_icon("res://art/ui/lightning.png"))
 	for _i in 10:
 		var seg := ColorRect.new()
 		seg.custom_minimum_size = Vector2(0, 22)
 		seg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		seg.color = Color("3a332c")
+		seg.color = Color("3a2422")
 		seg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		energy.add_child(seg)
 		energy_segs.append(seg)
@@ -256,7 +326,7 @@ func _board_tray() -> Control:
 	tray.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tray.size_flags_stretch_ratio = 1.4
 	tray.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tray.add_theme_stylebox_override("panel", _frame(Color("101614"), Palette.INK, 4))
+	tray.add_theme_stylebox_override("panel", _frame(Color("100e0c"), Palette.RUST, 4))
 	var inset := MarginContainer.new()
 	inset.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
@@ -298,17 +368,19 @@ func refresh() -> void:
 	if fight == null:
 		return
 	header.text = Game.header_text()
+	food_label.text = str(int(Game.stats.get("food", 0)))
+	ammo_label.text = str(int(Game.stats.get("ammo", 0)))
 	story.text = Game.battle_blurb()
 	_show_enemy_card(fight)
 	var hero_max := maxi(1, int(fight.hero_max()))
 	hero_label.text = "%d" % int(fight.hp)
-	shield_label.text = "щит %d" % int(fight.shield)
+	shield_label.text = "щ%d" % int(fight.shield)
 	_set_fill(hero_fill, float(fight.hp) / float(hero_max))
 	var enemy_max := maxi(1, int(fight.enemy.get("max_hp", 1)))
 	var extra := ""
 	if int(fight.minion_hp) > 0:
 		extra = " +%d" % int(fight.minion_hp)
-	enemy_name.text = "%s  %d/%d%s" % [fight.enemy["name"], int(fight.enemy["hp"]), enemy_max, extra]
+	enemy_name.text = "Враг: %d/%d%s" % [int(fight.enemy["hp"]), enemy_max, extra]
 	_set_fill(enemy_fill, float(int(fight.enemy["hp"])) / float(enemy_max))
 	var portrait := "pigeon" if str(fight.enemy.get("id", "")) == "pigeon" else "%s_%s" % [str(fight.enemy.get("id", "")), str(fight.enemy.get("subtype", "a"))]
 	enemy_portrait.texture = _portrait(portrait)
@@ -317,8 +389,10 @@ func refresh() -> void:
 	energy_label.text = "%d/10" % energy
 	for i in energy_segs.size():
 		var seg: ColorRect = energy_segs[i]
-		seg.color = Color("e2b84a") if i < energy else Color("3a332c")
-	footer.text = "%s\n%s" % [fight.log_line, Game.battle_reward_text()]
+		seg.color = Palette.MARKER if i < energy else Color("3a2422")
+	footer.text = Game.battle_reward_text()
+	if intent != null:
+		intent.text = "%s · %s" % [str(fight.enemy.get("name", "")), str(fight.enemy.get("intent", ""))]
 	leave.visible = fight.over
 	leave.disabled = not fight.over
 	leave.text = "Дальше" if fight.victory else "Это конец"
@@ -362,6 +436,9 @@ func _show_enemy_card(fight) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if animating:
+		get_viewport().set_input_as_handled()
+		return
 	if not is_visible_in_tree() or Game.battle == null or Game.battle.over:
 		return
 	if event is InputEventScreenTouch:
@@ -499,6 +576,8 @@ func _release(origin: Vector2i, landed: Vector2i) -> void:
 
 
 func _commit_swap(a: Vector2i, b: Vector2i) -> void:
+	if animating:
+		return
 	Sfx.note_input()
 	var fight = Game.battle
 	if fight == null:
@@ -508,14 +587,190 @@ func _commit_swap(a: Vector2i, b: Vector2i) -> void:
 		selected = b
 		refresh()
 		return
-	var before := int(fight.hp)
+	animating = true
+	var before_hp := int(fight.hp)
+	var before_enemy := int(fight.enemy.get("hp", 0))
+	var before_shield := int(fight.shield)
+	var ghosts := _capture_ghosts()
+	await _slide_ghosts(ghosts, a, b)
 	var moved: bool = fight.player_swap(a.x, a.y, b.x, b.y)
-	if moved:
-		selected = Vector2i(-1, -1)
-		Sfx.play("ui/bad" if fight.hp < before or not fight.victory else "ui/good", -6.0)
-	else:
+	if not moved:
+		await _slide_ghosts(ghosts, a, b)
+		_free_ghosts(ghosts)
+		_show_icons()
 		selected = b
+		animating = false
+		refresh()
+		return
+	await _play_steps(fight.board.anim_steps, ghosts)
+	selected = Vector2i(-1, -1)
+	Sfx.play("ui/bad" if fight.hp < before_hp or not fight.victory else "ui/good", -6.0)
+	animating = false
 	refresh()
+	_react(before_hp, before_enemy, before_shield, fight)
+
+
+func _capture_ghosts() -> Dictionary:
+	var ghosts := {}
+	for i in cell_panels.size():
+		var cell := Vector2i(i / 6, i % 6)
+		var ghost := _ghost(cell)
+		if ghost != null:
+			ghosts["%d,%d" % [cell.x, cell.y]] = ghost
+	return ghosts
+
+
+func _slide_ghosts(ghosts: Dictionary, a: Vector2i, b: Vector2i) -> void:
+	var key_a := "%d,%d" % [a.x, a.y]
+	var key_b := "%d,%d" % [b.x, b.y]
+	if not ghosts.has(key_a) or not ghosts.has(key_b):
+		return
+	var ghost_a: TextureRect = ghosts[key_a]
+	var ghost_b: TextureRect = ghosts[key_b]
+	var pos_a := ghost_a.position
+	var pos_b := ghost_b.position
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(ghost_a, "position", pos_b, 0.16)
+	tween.tween_property(ghost_b, "position", pos_a, 0.16)
+	await tween.finished
+	ghosts[key_a] = ghost_b
+	ghosts[key_b] = ghost_a
+
+
+func _free_ghosts(ghosts: Dictionary) -> void:
+	for key in ghosts.keys():
+		(ghosts[key] as Node).queue_free()
+
+
+func _play_steps(steps: Array, ghosts: Dictionary) -> void:
+	for step in steps:
+		var op := str(step.get("op", ""))
+		if op == "clear":
+			var tween := create_tween()
+			tween.set_parallel(true)
+			var used := false
+			for pos in step.get("cells", []):
+				var key := "%d,%d" % [int(pos[0]), int(pos[1])]
+				if not ghosts.has(key):
+					continue
+				var ghost: TextureRect = ghosts[key]
+				ghost.pivot_offset = ghost.size * 0.5
+				tween.tween_property(ghost, "scale", Vector2(0.15, 0.15), 0.14)
+				tween.tween_property(ghost, "modulate:a", 0.0, 0.14)
+				used = true
+			if used:
+				await tween.finished
+			else:
+				tween.kill()
+			for pos in step.get("cells", []):
+				var key := "%d,%d" % [int(pos[0]), int(pos[1])]
+				if ghosts.has(key):
+					(ghosts[key] as Node).queue_free()
+					ghosts.erase(key)
+		elif op == "drop":
+			var tween := create_tween()
+			tween.set_parallel(true)
+			tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			var moved := {}
+			var used := false
+			for move in step.get("moves", []):
+				var from_key := "%d,%d" % [int(move[0]), int(move[1])]
+				var to_cell := Vector2i(int(move[2]), int(move[3]))
+				if not ghosts.has(from_key):
+					continue
+				var ghost: TextureRect = ghosts[from_key]
+				tween.tween_property(ghost, "position", _cell_local(to_cell).position, 0.2)
+				moved["%d,%d" % [to_cell.x, to_cell.y]] = ghost
+				ghosts.erase(from_key)
+				used = true
+			for spawn in step.get("spawns", []):
+				var to_cell := Vector2i(int(spawn[0]), int(spawn[1]))
+				var ghost := _ghost(to_cell, _tile_texture(str(spawn[2])))
+				if ghost == null:
+					continue
+				var dest: Vector2 = ghost.position
+				ghost.position = dest + Vector2(0, -_cell_local(to_cell).size.y * 1.2)
+				tween.tween_property(ghost, "position", dest, 0.22)
+				moved["%d,%d" % [to_cell.x, to_cell.y]] = ghost
+				used = true
+			for key in ghosts.keys():
+				moved[key] = ghosts[key]
+			if used:
+				await tween.finished
+			else:
+				tween.kill()
+			ghosts = moved
+		elif op == "shuffle":
+			break
+	for key in ghosts.keys():
+		(ghosts[key] as Node).queue_free()
+	_show_icons()
+
+
+func _ghost(cell: Vector2i, texture: Texture2D = null) -> TextureRect:
+	var index := cell.x * 6 + cell.y
+	if index < 0 or index >= cell_icons.size():
+		return null
+	var icon: TextureRect = cell_icons[index]
+	var ghost := TextureRect.new()
+	ghost.texture = texture if texture != null else icon.texture
+	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ghost.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ghost.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var rect := _cell_local(cell)
+	ghost.position = rect.position
+	ghost.size = rect.size
+	ghost.pivot_offset = rect.size * 0.5
+	add_child(ghost)
+	if rect.size.x > 4.0:
+		icon.modulate.a = 0.0
+	return ghost
+
+
+func _show_icons() -> void:
+	for icon in cell_icons:
+		(icon as CanvasItem).modulate.a = 1.0
+
+
+func _cell_local(cell: Vector2i) -> Rect2:
+	var index := cell.x * 6 + cell.y
+	var panel := cell_panels[index] as Control
+	var global_rect := panel.get_global_rect()
+	var origin := global_rect.position - get_global_rect().position
+	return Rect2(origin, global_rect.size)
+
+
+func _react(before_hp: int, before_enemy: int, before_shield: int, fight) -> void:
+	var dealt := before_enemy - int(fight.enemy.get("hp", before_enemy))
+	var hurt := before_hp - int(fight.hp)
+	var healed := int(fight.hp) - before_hp
+	var shielded := int(fight.shield) - before_shield
+	if dealt > 0 and mob_card != null:
+		var number := _line("-%d" % dealt, 36, display)
+		number.add_theme_color_override("font_color", Palette.MARKER)
+		var spot := mob_card.get_global_rect()
+		number.position = get_global_transform().affine_inverse() * (spot.position + Vector2(spot.size.x * 0.55, 28))
+		number.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(number)
+		var base := mob_card.rotation
+		var pop := create_tween()
+		pop.set_parallel(true)
+		pop.tween_property(mob_card, "rotation", base + 0.04, 0.05)
+		pop.tween_property(number, "position:y", number.position.y - 42, 0.28)
+		pop.tween_property(number, "modulate:a", 0.0, 0.28)
+		pop.chain().tween_property(mob_card, "rotation", base, 0.08)
+		pop.finished.connect(number.queue_free)
+	if hurt > 0 and hero_label != null:
+		var shake := create_tween()
+		shake.tween_property(hero_label, "modulate", Color(1, 0.4, 0.35), 0.06)
+		shake.tween_property(hero_label, "modulate", Color.WHITE, 0.12)
+	if healed > 0 or shielded > 0:
+		var target: Control = hero_label
+		target.pivot_offset = target.size * 0.5
+		var pop := create_tween()
+		pop.tween_property(target, "scale", Vector2(1.25, 1.25), 0.08)
+		pop.tween_property(target, "scale", Vector2.ONE, 0.12)
 
 
 func _cast(spell_id: String) -> void:

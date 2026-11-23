@@ -73,4 +73,6 @@
 | `fonts/Manrope.ttf` | OFL 1.1, `fonts/OFL-Manrope.txt` | Michael Sharanda |
 | `fonts/Unbounded.ttf` | OFL 1.1, `fonts/OFL-Unbounded.txt` | Grigory Mashkov |
 
-Текст дней идёт Neucha, заголовки и кнопки — Caveat. Оба шрифта с кириллицей, OFL.
+Текст дней идёт Neucha, числа и заголовки — Unbounded (жирное начертание). Оба шрифта с кириллицей, OFL.
+
+Значки `art/ui/lightning.png` и `art/ui/door.png` нарисованы для этой игры.
