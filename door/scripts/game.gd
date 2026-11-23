@@ -4,6 +4,8 @@ extends Node
 const RES_PATH := "res://data/events.json"
 const USER_PATH := "user://events.json"
 const CHECKPOINT_PATH := "user://chapter_checkpoint.json"
+const META_PATH := "user://meta.cfg"
+const WEAPON_ORDER: Array[String] = ["baguette", "pan", "crowbar", "rifle"]
 const STAT_ORDER: Array[String] = ["food", "health", "sanity", "ammo"]
 const KNOWN_SCENES: Array[String] = [
 	"door", "open", "basement", "window", "stranger", "radio", "dog", "street",
@@ -52,6 +54,14 @@ var ending_line: String = ""
 var last_reveal: Dictionary = {}
 var source_label: String = RES_PATH
 var using_override: bool = false
+var awaiting_battle: bool = false
+var battle = null
+var _battle_pack: Dictionary = {}
+var weapon: String = "baguette"
+var best_weapon: String = "baguette"
+var artifacts: Array[String] = []
+var flat_medal: bool = false
+var bonus_max_hp: int = 0
 
 
 func _ready() -> void:
@@ -131,6 +141,12 @@ func start_run(fixed_seed: int = -1) -> void:
 	else:
 		seed_value = randi() % 1000000
 	rng.seed = seed_value
+	_load_meta()
+	weapon = best_weapon
+	artifacts.clear()
+	_recompute_bonus()
+	awaiting_battle = false
+	battle = null
 	day = 1
 	chapter = 1
 	chapter_break = false
@@ -150,6 +166,8 @@ func start_run(fixed_seed: int = -1) -> void:
 	var spec: Dictionary = meta.get("stats", {})
 	for id in STAT_ORDER:
 		stats[id] = int(spec.get(id, {}).get("start", 0))
+	if flat_medal:
+		stats["health"] = stat_max("health")
 	pending = _opening_or_pick(1)
 	save_checkpoint()
 
@@ -159,7 +177,10 @@ func stat_label(id: String) -> String:
 
 
 func stat_max(id: String) -> int:
-	return maxi(1, int(meta.get("stats", {}).get(id, {}).get("max", 1)))
+	var base := maxi(1, int(meta.get("stats", {}).get(id, {}).get("max", 1)))
+	if id == "health":
+		base += bonus_max_hp
+	return base
 
 
 func night_hint() -> String:
@@ -202,6 +223,76 @@ func choose(which: String) -> Dictionary:
 	if event_id != "":
 		seen[event_id] = int(seen.get(event_id, 0)) + 1
 	last_highlight = bool(event.get("highlight", false))
+	var fight: Variant = branch.get("battle", event.get("battle", {}))
+	if typeof(fight) == TYPE_DICTIONARY and not (fight as Dictionary).is_empty():
+		_battle_pack = {"branch": branch, "event": event, "event_id": event_id, "spec": fight, "choice": which}
+		awaiting_battle = true
+		battle = preload("res://scripts/battle.gd").new()
+		battle.start(self, fight)
+		last_reveal = {
+			"text": _fill(str(event.get("setup", ""))),
+			"deltas": {},
+			"notes": [],
+			"bad": false,
+			"dead": false,
+			"won": false,
+			"battle": true,
+			"event_id": event_id,
+			"choice": which,
+			"scene": str(event.get("scene", "quiet")),
+			"image": illustration_path(event),
+			"highlight": last_highlight,
+			"chapter_break": false,
+		}
+		return last_reveal
+	return _conclude(branch, event, event_id, which)
+
+
+func finish_battle(victory: bool) -> Dictionary:
+	var pack: Dictionary = _battle_pack
+	awaiting_battle = false
+	if not victory:
+		stats["health"] = 0
+		run_over = true
+		won = false
+		ending_title = "Вас добили"
+		ending_line = str(battle.log_line) if battle else "Бой кончился плохо."
+		last_reveal = {
+			"text": ending_line,
+			"deltas": {"health": -int(stat_max("health"))},
+			"notes": [],
+			"bad": true,
+			"dead": true,
+			"won": false,
+			"battle": false,
+			"event_id": str(pack.get("event_id", "")),
+			"choice": "",
+			"scene": str(pack.get("event", {}).get("scene", "quiet")),
+			"image": illustration_path(pack.get("event", {})),
+			"highlight": false,
+			"chapter_break": false,
+		}
+		battle = null
+		return last_reveal
+	var branch: Dictionary = (pack["branch"] as Dictionary).duplicate(true)
+	var spec: Dictionary = pack["spec"]
+	var effects: Dictionary = branch.get("effects", {}).duplicate(true)
+	var reward: Dictionary = spec.get("reward", {})
+	for key in reward.keys():
+		effects[str(key)] = int(effects.get(key, 0)) + int(reward[key])
+	if effects.is_empty():
+		branch.erase("effects")
+	else:
+		branch["effects"] = effects
+	var found := str(spec.get("weapon", ""))
+	if found != "":
+		grant_weapon(found)
+	_maybe_artifact()
+	battle = null
+	return _conclude(branch, pack["event"], str(pack["event_id"]), str(pack.get("choice", "")))
+
+
+func _conclude(branch: Dictionary, event: Dictionary, event_id: String, which: String) -> Dictionary:
 	var deltas := _apply_effects(branch.get("effects", {}))
 	var gained: Dictionary = deltas.duplicate()
 	_apply_flags(branch)
@@ -486,7 +577,10 @@ func _apply_effects(effects: Variant) -> Dictionary:
 		if not stats.has(stat_id):
 			continue
 		var before := int(stats[stat_id])
-		var after := clampi(before + int(effects[key]), 0, stat_max(stat_id))
+		var amount := int(effects[key])
+		if stat_id == "health" and absi(amount) <= 5:
+			amount *= 8
+		var after := clampi(before + amount, 0, stat_max(stat_id))
 		stats[stat_id] = after
 		deltas[stat_id] = after - before
 	return deltas
@@ -514,7 +608,10 @@ func _apply_upkeep(deltas: Dictionary, gained: Dictionary) -> Array[String]:
 					if not stats.has(did):
 						continue
 					var dbefore := int(stats[did])
-					var dafter := clampi(dbefore + int(damage[dkey]), 0, stat_max(did))
+					var damount := int(damage[dkey])
+					if did == "health" and absi(damount) <= 5:
+						damount *= 8
+					var dafter := clampi(dbefore + damount, 0, stat_max(did))
 					stats[did] = dafter
 					deltas[did] = int(deltas.get(did, 0)) + (dafter - dbefore)
 				notes.append(str(starve.get("line", "Голод.")))
@@ -675,6 +772,9 @@ func checkpoint_payload() -> Dictionary:
 		"seen": seen.duplicate(),
 		"pending": str(pending.get("id", "")),
 		"last_highlight": last_highlight,
+		"weapon": weapon,
+		"artifacts": artifacts.duplicate(),
+		"bonus_max_hp": bonus_max_hp,
 	}
 
 
@@ -716,6 +816,12 @@ func load_checkpoint() -> bool:
 	var saved_seen: Dictionary = parsed.get("seen", {})
 	for key in saved_seen.keys():
 		seen[str(key)] = int(saved_seen[key])
+	_load_meta()
+	weapon = str(parsed.get("weapon", best_weapon))
+	artifacts.clear()
+	for item in parsed.get("artifacts", []):
+		artifacts.append(str(item))
+	_recompute_bonus()
 	var pending_id := str(parsed.get("pending", ""))
 	if pending_id != "" and by_id.has(pending_id):
 		pending = by_id[pending_id]
@@ -741,6 +847,76 @@ func _fallback() -> Dictionary:
 			"effects": {"food": 1, "sanity": -1},
 		},
 	}
+
+
+func battle_blurb() -> String:
+	return setup_text()
+
+
+func battle_reward_text() -> String:
+	var spec: Dictionary = _battle_pack.get("spec", {})
+	var reward: Dictionary = spec.get("reward", {})
+	var bits: Array[String] = []
+	for key in reward.keys():
+		bits.append("+%s %s" % [str(reward[key]), stat_label(str(key))])
+	var found := str(spec.get("weapon", ""))
+	if found != "":
+		bits.append("оружие")
+	if bits.is_empty():
+		return "Победа: вы ещё дышите."
+	return "Победа: " + ", ".join(bits)
+
+
+func attack_tile() -> String:
+	return weapon if weapon != "" else "baguette"
+
+
+func grant_weapon(found: String) -> void:
+	if WEAPON_ORDER.find(found) > WEAPON_ORDER.find(weapon):
+		weapon = found
+	if WEAPON_ORDER.find(found) > WEAPON_ORDER.find(best_weapon):
+		best_weapon = found
+		_save_meta()
+
+
+func _maybe_artifact() -> void:
+	var pool: Array[String] = ["backpack_patch", "sticking_plaster", "raisa_pepper", "zhek_notebook", "coffee_3in1", "electrical_tape", "postman_whistle", "training_grenade", "plastic_bag", "radio_antenna"]
+	var open: Array[String] = []
+	for item in pool:
+		if not artifacts.has(item):
+			open.append(item)
+	if open.is_empty() or rng.randi_range(0, 2) > 0:
+		return
+	var pick: String = open[rng.randi_range(0, open.size() - 1)]
+	artifacts.append(pick)
+	if pick == "backpack_patch":
+		bonus_max_hp += 8
+
+
+func _recompute_bonus() -> void:
+	bonus_max_hp = 5 if flat_medal else 0
+	if artifacts.has("backpack_patch"):
+		bonus_max_hp += 8
+
+
+func _load_meta() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(META_PATH) != OK:
+		best_weapon = "baguette"
+		flat_medal = false
+		return
+	best_weapon = str(cfg.get_value("meta", "best_weapon", "baguette"))
+	if WEAPON_ORDER.find(best_weapon) < 0:
+		best_weapon = "baguette"
+	flat_medal = bool(cfg.get_value("meta", "flat_medal", false))
+
+
+func _save_meta() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(META_PATH)
+	cfg.set_value("meta", "best_weapon", best_weapon)
+	cfg.set_value("meta", "flat_medal", flat_medal)
+	cfg.save(META_PATH)
 
 
 func _write_text(path: String, text: String) -> Error:

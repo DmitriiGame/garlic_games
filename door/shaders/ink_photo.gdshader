@@ -1,6 +1,6 @@
 shader_type canvas_item;
 
-uniform vec3 ink : source_color = vec3(0.122, 0.290, 0.259);
+uniform vec3 ink : source_color = vec3(0.835, 0.878, 0.839);
 uniform vec3 marker : source_color = vec3(0.753, 0.271, 0.220);
 
 void fragment() {

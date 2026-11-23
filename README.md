@@ -4,7 +4,7 @@
 
 ## Откроешь дверь?
 
-Вторая игра, отдельно от Огурчика, в папке `door/` (Godot 4.7, GDScript). Корневые `index.html`, `game.js`, `style.css` и `assets/` не входят в её проект. После деплоя она открывается на https://dmitriigame.github.io/garlic_games/door/
+Вторая игра, отдельно от Огурчика, в папке `door/` (Godot 4.7, GDScript): история на три главы, а в первой главе ещё и короткие бои «три в ряд» на общем здоровье. Корневые `index.html`, `game.js`, `style.css` и `assets/` не входят в её проект. После деплоя она открывается на https://dmitriigame.github.io/garlic_games/door/
 
 Как открыть проект, дописать день и собрать Android — в [door/README.md](door/README.md). События лежат в `door/data/events.json`.
 

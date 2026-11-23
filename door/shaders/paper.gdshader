@@ -1,8 +1,8 @@
 shader_type canvas_item;
 
-uniform vec3 paper_light : source_color = vec3(0.851, 0.867, 0.824);
-uniform vec3 paper_shade : source_color = vec3(0.812, 0.835, 0.784);
-uniform vec3 ink : source_color = vec3(0.122, 0.290, 0.259);
+uniform vec3 paper_light : source_color = vec3(0.102, 0.129, 0.118);
+uniform vec3 paper_shade : source_color = vec3(0.071, 0.094, 0.086);
+uniform vec3 ink : source_color = vec3(0.835, 0.878, 0.839);
 uniform vec3 flashlight : source_color = vec3(0.72, 0.52, 0.28);
 
 float hash21(vec2 p) {

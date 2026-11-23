@@ -145,6 +145,13 @@ func _build() -> void:
 	screens.reveal = _build_reveal()
 	screens.chapter = _build_chapter()
 	screens["end"] = _build_end()
+	var battle_view := preload("res://scripts/battle_view.gd").new()
+	battle_view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	battle_view.setup(display, body)
+	battle_view.visible = false
+	battle_view.finished.connect(_on_battle_done)
+	page_host.add_child(battle_view)
+	screens.battle = battle_view
 	editor = preload("res://scripts/editor_ui.gd").new()
 	editor.set_anchors_preset(Control.PRESET_FULL_RECT)
 	editor.visible = false
@@ -157,7 +164,7 @@ func _build() -> void:
 	wash.modulate.a = 0.0
 	page_host.add_child(wash)
 	screens.editor = editor
-	for key in ["title", "day", "reveal", "chapter", "end"]:
+	for key in ["title", "day", "reveal", "chapter", "end", "battle"]:
 		screens[key].visible = false
 
 
@@ -524,9 +531,9 @@ func _button_style(primary: bool, hot: bool) -> StyleBoxFlat:
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
 	if primary:
-		style.bg_color = Palette.INK_DEEP if hot else INK
+		style.bg_color = Palette.PANEL
 		style.set_border_width_all(3)
-		style.border_color = INK
+		style.border_color = BLOOD if hot else INK
 	else:
 		style.bg_color = Color(PAPER.r, PAPER.g, PAPER.b, 0.72) if hot else Color(PAPER.r, PAPER.g, PAPER.b, 0.35)
 		style.set_border_width_all(3)
@@ -593,8 +600,9 @@ func _slider_line(caption: String, current: float, apply: Callable) -> Control:
 	return line
 
 
-func _tint_stat(number: Label, value: int) -> void:
-	number.add_theme_color_override("font_color", BLOOD if value <= 1 else INK)
+func _tint_stat(number: Label, id: String, value: int) -> void:
+	var low := value <= 8 if id == "health" else value <= 1
+	number.add_theme_color_override("font_color", BLOOD if low else INK)
 
 
 func _refresh_stats(animate: bool = false) -> void:
@@ -607,14 +615,15 @@ func _refresh_stats(animate: bool = false) -> void:
 			(stat_tweens[id] as Tween).kill()
 		if not animate or previous == value:
 			number.text = str(value)
-			_tint_stat(number, value)
+			_tint_stat(number, id, value)
 			continue
 		var tween := create_tween()
 		stat_tweens[id] = tween
+		var stat_id := id
 		tween.tween_method(func(shown: float) -> void:
 			var current := int(round(shown))
 			number.text = str(current)
-			_tint_stat(number, current)
+			_tint_stat(number, stat_id, current)
 		, float(previous), float(value), 0.32).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		number.pivot_offset = number.size * 0.5
 		var settle := create_tween()
@@ -791,6 +800,15 @@ func _on_choice(which: String) -> void:
 	Sfx.note_input()
 	Sfx.play("ui/pen", -4.0)
 	var reveal: Dictionary = Game.choose(which)
+	if bool(reveal.get("battle", false)):
+		screens.battle.call("refresh")
+		_show_screen(screens.battle)
+		return
+	_show_reveal(reveal)
+
+
+func _on_battle_done(won: bool) -> void:
+	var reveal: Dictionary = Game.finish_battle(won)
 	_show_reveal(reveal)
 
 
@@ -871,7 +889,7 @@ func _show_chapter() -> void:
 		child.queue_free()
 	for id in Game.STAT_ORDER:
 		var value := int(Game.stats.get(id, 0))
-		chapter_stats.add_child(_label("%s %d" % [Game.stat_label(id), value], 28, BLOOD if value <= 1 else INK, display, HORIZONTAL_ALIGNMENT_CENTER))
+		chapter_stats.add_child(_label("%s %d" % [Game.stat_label(id), value], 28, BLOOD if (id == "health" and value <= 8) or (id != "health" and value <= 1) else INK, display, HORIZONTAL_ALIGNMENT_CENTER))
 	var photo := screens.chapter.find_child("ChapterPhoto", true, false) as TextureRect
 	_present_photo(photo, str(Game.last_reveal.get("image", "res://art/hero.webp")), true)
 	Sfx.play("ui/good", -4.0)
@@ -907,7 +925,7 @@ func _show_end() -> void:
 		child.queue_free()
 	for id in Game.STAT_ORDER:
 		var value := int(Game.stats.get(id, 0))
-		end_stats.add_child(_label("%s %d" % [Game.stat_label(id), value], 28, BLOOD if value <= 1 else INK, display, HORIZONTAL_ALIGNMENT_CENTER))
+		end_stats.add_child(_label("%s %d" % [Game.stat_label(id), value], 28, BLOOD if (id == "health" and value <= 8) or (id != "health" and value <= 1) else INK, display, HORIZONTAL_ALIGNMENT_CENTER))
 	end_seed.text = "зерно %d  ·  глава %d  ·  день %d  ·  всего %d" % [Game.seed_value, Game.chapter, Game.day, Game.total_day()]
 	if end_again:
 		end_again.text = "Ещё раз" if won else "Главу заново"
@@ -975,6 +993,14 @@ func _run_shots() -> void:
 	_skip_type()
 	await get_tree().create_timer(0.25).timeout
 	await _shot("06-chapter2")
+	Game.start_run(4)
+	Game.day = 8
+	if Game.by_id.has("window"):
+		Game.pending = Game.by_id["window"]
+	_show_day()
+	_on_choice("a")
+	await get_tree().create_timer(0.35).timeout
+	await _shot("07-battle")
 	if Game.by_id.has("pigeon_ultimatum"):
 		Game.pending = Game.by_id["pigeon_ultimatum"]
 	_show_day()
