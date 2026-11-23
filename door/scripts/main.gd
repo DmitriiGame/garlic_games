@@ -1008,7 +1008,9 @@ func _run_shots() -> void:
 	await _shot("06-chapter2")
 	Game.start_run(4)
 	Game.day = 8
-	if Game.by_id.has("window"):
+	if Game.by_id.has("basement"):
+		Game.pending = Game.by_id["basement"]
+	elif Game.by_id.has("window"):
 		Game.pending = Game.by_id["window"]
 	_show_day()
 	_on_choice("a")
