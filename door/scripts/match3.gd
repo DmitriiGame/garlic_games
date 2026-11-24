@@ -7,6 +7,7 @@ const TYPES: Array[String] = ["baguette", "brains", "bandage", "energy_drink", "
 
 var grid: Array = []
 var cursed: Dictionary = {}
+var anim_steps: Array = []
 
 
 func build(rng: RandomNumberGenerator) -> void:
@@ -99,19 +100,25 @@ func try_swap(r1: int, c1: int, r2: int, c2: int) -> bool:
 func resolve(rng: RandomNumberGenerator) -> Array:
 	var awarded: Array = []
 	var combo := 0
+	anim_steps.clear()
 	while true:
 		var runs := find_runs()
 		if runs.is_empty():
 			break
 		combo += 1
+		var cleared: Array = []
 		for run in runs:
 			run["combo"] = combo
 			awarded.append(run)
+			for pos in run.get("cells", []):
+				cleared.append([int(pos[0]), int(pos[1])])
+		anim_steps.append({"op": "clear", "cells": cleared})
 		_erase_runs(runs)
 		_collapse(rng)
 	if not has_move():
 		build(rng)
 		awarded.append({"type": "_shuffle", "n": 0, "combo": 0})
+		anim_steps.append({"op": "shuffle"})
 	return awarded
 
 
@@ -227,18 +234,27 @@ func _erase_runs(runs: Array) -> void:
 
 
 func _collapse(rng: RandomNumberGenerator) -> void:
+	var moves: Array = []
+	var spawns: Array = []
 	for c in COLS:
 		var stack: Array = []
 		for r in range(ROWS - 1, -1, -1):
 			if cell(r, c) != "":
-				stack.append(cell(r, c))
+				stack.append([cell(r, c), r])
 		var write := ROWS - 1
-		for type in stack:
+		for item in stack:
+			var type: String = str(item[0])
+			var old_r: int = int(item[1])
 			grid[write][c] = type
+			if old_r != write:
+				moves.append([old_r, c, write, c])
 			write -= 1
 		while write >= 0:
-			grid[write][c] = _random_type(rng)
+			var born := _random_type(rng)
+			grid[write][c] = born
+			spawns.append([write, c, born])
 			write -= 1
+	anim_steps.append({"op": "drop", "moves": moves, "spawns": spawns})
 
 
 func _exchange(r1: int, c1: int, r2: int, c2: int) -> void:

@@ -65,8 +65,9 @@ var shot_mode: bool = false
 
 func _ready() -> void:
 	shot_mode = OS.get_environment("DOOR_SHOT") != ""
-	display = _font("res://fonts/Caveat.ttf", 700)
-	body = load("res://fonts/Pangolin-Regular.ttf")
+	var unbounded := load("res://fonts/Unbounded.ttf") as Font
+	display = unbounded if unbounded != null else _font("res://fonts/Caveat.ttf", 700)
+	body = load("res://fonts/Neucha.ttf")
 	_build()
 	_show_screen(screens.title)
 	if shot_mode:
@@ -218,12 +219,17 @@ func _build_day() -> Control:
 	var box := _column(screen)
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 12)
-	day_title = _label("Глава 1 · Квартира · День 01", 28, INK, display, HORIZONTAL_ALIGNMENT_LEFT)
+	day_title = _label("Глава 1 · Квартира · День 01", 26, INK, display, HORIZONTAL_ALIGNMENT_LEFT)
 	day_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	day_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	day_title.autowrap_mode = TextServer.AUTOWRAP_OFF
+	day_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	day_title.clip_text = true
 	top.add_child(day_title)
-	var mute := _button("звук", false)
-	mute.custom_minimum_size = Vector2(118, 64)
+	var mute := _button("Звук", false, 56)
+	mute.autowrap_mode = TextServer.AUTOWRAP_OFF
+	mute.clip_text = false
+	mute.add_theme_font_size_override("font_size", 22)
+	mute.custom_minimum_size = Vector2(148, 72)
 	mute.pressed.connect(_on_mute)
 	mute_buttons.append(mute)
 	top.add_child(mute)
@@ -239,14 +245,18 @@ func _build_day() -> Control:
 	day_photo = _photo_in(art)
 	day_stamp = _stamp(art)
 	box.add_child(art)
-	day_text = _rich(30)
+	var text_panel := PanelContainer.new()
+	text_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	text_panel.size_flags_stretch_ratio = 0.85
+	text_panel.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(14))
+	day_text = _rich(28)
 	day_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	day_text.size_flags_stretch_ratio = 0.9
 	day_text.gui_input.connect(func(ev: InputEvent) -> void:
 		if ev is InputEventMouseButton and ev.pressed:
 			_skip_type()
 	)
-	box.add_child(day_text)
+	text_panel.add_child(day_text)
+	box.add_child(text_panel)
 	choice_a = _button("…", true)
 	choice_a.pressed.connect(func() -> void: _on_choice("a"))
 	choice_b = _button("…", false)
@@ -391,15 +401,7 @@ func _art_host(min_h: float) -> Control:
 	var host := Panel.new()
 	host.custom_minimum_size = Vector2(0, min_h)
 	host.clip_contents = true
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(Palette.INK_DEEP.r, Palette.INK_DEEP.g, Palette.INK_DEEP.b, 0.55)
-	style.set_border_width_all(4)
-	style.border_color = INK
-	style.set_corner_radius_all(10)
-	style.shadow_color = Color(0.11, 0.2, 0.4, 0.18)
-	style.shadow_size = 6
-	style.shadow_offset = Vector2(3, 4)
-	host.add_theme_stylebox_override("panel", style)
+	host.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(12))
 	return host
 
 
@@ -423,11 +425,10 @@ func _frame_art(host: Panel, highlight: bool) -> void:
 	var style := host.get_theme_stylebox("panel")
 	if style == null:
 		return
-	var copy := style.duplicate() as StyleBoxFlat
+	var copy := style.duplicate() as StyleBoxTexture
 	if copy == null:
 		return
-	copy.border_color = BLOOD if highlight else INK
-	copy.set_border_width_all(8 if highlight else 3)
+	copy.modulate_color = Color(1.22, 0.74, 0.68) if highlight else Color.WHITE
 	host.add_theme_stylebox_override("panel", copy)
 
 
@@ -524,47 +525,48 @@ func _button(text: String, primary: bool, height: int = 92) -> Button:
 	return button
 
 
-func _button_style(primary: bool, hot: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.set_corner_radius_all(10)
-	style.content_margin_left = 18
-	style.content_margin_right = 18
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	style.shadow_color = Color(0, 0, 0, 0.5)
-	style.shadow_size = 5
-	style.shadow_offset = Vector2(3, 5)
-	if primary:
-		style.bg_color = Palette.PANEL
-		style.set_border_width_all(4)
-		style.border_color = BLOOD if hot else INK
-	else:
-		style.bg_color = Palette.INK_DEEP if hot else Color(Palette.INK_DEEP.r, Palette.INK_DEEP.g, Palette.INK_DEEP.b, 0.92)
-		style.set_border_width_all(4)
-		style.border_color = BLOOD if hot else INK
+func _button_style(primary: bool, hot: bool) -> StyleBoxTexture:
+	var style: StyleBoxTexture = preload("res://scripts/chalk_style.gd").button(14)
+	if primary or hot:
+		style.modulate_color = Color(1.08, 0.9, 0.86)
 	return style
 
 
 func _stat_row() -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 6)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var icons := {
+		"food": "res://art/ui/stat_food.png",
+		"health": "res://art/ui/stat_health.png",
+		"sanity": "res://art/ui/stat_sanity.png",
+		"ammo": "res://art/ui/stat_ammo.png",
+	}
 	for id in Game.STAT_ORDER:
 		var cell := PanelContainer.new()
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var chip := _button_style(false, false)
-		chip.content_margin_top = 2
-		chip.content_margin_bottom = 2
-		chip.shadow_size = 0
-		cell.add_theme_stylebox_override("panel", chip)
+		cell.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").button(6))
+		var line := HBoxContainer.new()
+		line.alignment = BoxContainer.ALIGNMENT_CENTER
+		line.add_theme_constant_override("separation", 4)
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(28, 28)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon_path := str(icons.get(id, ""))
+		if icon_path != "" and ResourceLoader.exists(icon_path):
+			icon.texture = load(icon_path)
+		line.add_child(icon)
 		var stack := VBoxContainer.new()
 		stack.alignment = BoxContainer.ALIGNMENT_CENTER
-		cell.add_child(stack)
-		var number := _label("0", 48, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
+		var number := _label("0", 32, INK, display, HORIZONTAL_ALIGNMENT_LEFT)
 		stat_numbers[id] = number
 		stack.add_child(number)
-		var name := _label(Game.stat_label(id), 26, INK, display, HORIZONTAL_ALIGNMENT_CENTER)
+		var name := _label(Game.stat_label(id), 16, MUTED, body, HORIZONTAL_ALIGNMENT_LEFT)
 		stack.add_child(name)
+		line.add_child(stack)
+		cell.add_child(line)
 		row.add_child(cell)
 	return row
 
@@ -1016,6 +1018,13 @@ func _run_shots() -> void:
 	_on_choice("a")
 	await get_tree().create_timer(0.35).timeout
 	await _shot("07-battle")
+	Game.chapter = 2
+	Game.battle = preload("res://scripts/battle.gd").new()
+	Game.battle.start(Game, {"enemy": "pigeon", "subtype": "a"})
+	screens.battle.call("refresh")
+	_show_screen(screens.battle)
+	await get_tree().create_timer(0.35).timeout
+	await _shot("09-pigeon")
 	if Game.by_id.has("pigeon_ultimatum"):
 		Game.pending = Game.by_id["pigeon_ultimatum"]
 	_show_day()

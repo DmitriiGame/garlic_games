@@ -58,10 +58,13 @@ void fragment() {
 	float dent = vnoise(p * 0.08);
 	col *= 1.0 - smoothstep(0.72, 0.95, dent) * 0.04;
 
-	float minor = grid_line(p, 22.0);
-	float major = grid_line(p, 88.0);
-	float grid = max(minor * 0.5, major * 0.85);
-	col = mix(col, ink, grid * 0.14);
+	float minor = grid_line(p, 36.0);
+	float major = grid_line(p, 160.0);
+	float grid = max(minor * 0.35, major);
+	col = mix(col, ink, grid * 0.035);
+	float scratch = step(0.86, vnoise(vec2(p.x * 0.012, floor(p.y * 0.18))));
+	float hair = smoothstep(0.46, 0.5, abs(fract(p.y * 0.07 + vnoise(p * 0.004) * 3.0) - 0.5));
+	col = mix(col, ink, scratch * hair * 0.07);
 
 	vec2 q = uv * 2.0 - 1.0;
 	float vig = smoothstep(0.22, 1.15, length(q * vec2(0.72, 1.05)));
