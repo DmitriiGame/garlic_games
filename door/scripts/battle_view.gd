@@ -14,6 +14,9 @@ var story: Label
 var mob_card: Control
 var animating := false
 var photo: TextureRect
+var hero_figure: TextureRect
+var card_scene: TextureRect
+var scene_bg: TextureRect
 var card_name: Label
 var ink_mat: ShaderMaterial
 var hero_fill: ColorRect
@@ -50,6 +53,17 @@ func setup(display_font: Font, body_font: Font) -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	display = display_font
 	body = body_font
+	scene_bg = TextureRect.new()
+	scene_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scene_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	scene_bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	scene_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var blur := ShaderMaterial.new()
+	blur.shader = preload("res://shaders/scene_blur.gdshader")
+	blur.set_shader_parameter("darkness", 0.9)
+	blur.set_shader_parameter("blur_px", 2.0)
+	scene_bg.material = blur
+	add_child(scene_bg)
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
@@ -84,14 +98,14 @@ func _story_card() -> Control:
 	var card := Panel.new()
 	card.custom_minimum_size = Vector2(0, 250)
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	card.add_theme_stylebox_override("panel", _frame(Color("14110f"), Palette.RUST, 4))
+	card.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(8))
 	card.clip_contents = true
 	var inner := VBoxContainer.new()
 	inner.set_anchors_preset(Control.PRESET_FULL_RECT)
-	inner.offset_left = 8
-	inner.offset_top = 8
-	inner.offset_right = -8
-	inner.offset_bottom = -8
+	inner.offset_left = 18
+	inner.offset_top = 16
+	inner.offset_right = -16
+	inner.offset_bottom = -16
 	inner.add_theme_constant_override("separation", 6)
 	card.add_child(inner)
 	var art := Control.new()
@@ -109,7 +123,44 @@ func _story_card() -> Control:
 	ink_mat.shader = preload("res://shaders/ink_photo.gdshader")
 	ink_mat.set_shader_parameter("ink", Palette.INK)
 	ink_mat.set_shader_parameter("marker", Palette.MARKER)
+	card_scene = TextureRect.new()
+	card_scene.set_anchors_preset(Control.PRESET_FULL_RECT)
+	card_scene.offset_left = 6
+	card_scene.offset_top = 6
+	card_scene.offset_right = -6
+	card_scene.offset_bottom = -6
+	card_scene.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	card_scene.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	card_scene.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var card_blur := ShaderMaterial.new()
+	card_blur.shader = preload("res://shaders/scene_blur.gdshader")
+	card_blur.set_shader_parameter("darkness", 1.0)
+	card_blur.set_shader_parameter("blur_px", 0.8)
+	card_scene.material = card_blur
+	art.add_child(card_scene)
+	photo.anchor_left = 0.38
+	photo.anchor_right = 0.98
+	photo.anchor_top = 0.04
+	photo.anchor_bottom = 0.96
+	photo.offset_left = 0
+	photo.offset_top = 0
+	photo.offset_right = 0
+	photo.offset_bottom = 0
 	art.add_child(photo)
+	hero_figure = TextureRect.new()
+	hero_figure.anchor_left = 0.0
+	hero_figure.anchor_right = 0.62
+	hero_figure.anchor_top = 0.02
+	hero_figure.anchor_bottom = 0.98
+	hero_figure.offset_left = 8
+	hero_figure.offset_top = 0
+	hero_figure.offset_right = 0
+	hero_figure.offset_bottom = 0
+	hero_figure.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	hero_figure.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	hero_figure.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hero_figure.texture = load("res://art/ui/hero_fight.png")
+	art.add_child(hero_figure)
 	card_name = _line("", 28, display)
 	card_name.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	card_name.offset_left = 12
@@ -154,8 +205,8 @@ func _top_bar() -> Control:
 
 func _text_box() -> Control:
 	var panel := Panel.new()
-	panel.add_theme_stylebox_override("panel", _frame(Color("14110f"), Palette.RUST, 3))
-	panel.custom_minimum_size = Vector2(0, 72)
+	panel.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(12))
+	panel.custom_minimum_size = Vector2(0, 96)
 	story = _line("", 22, body)
 	story.max_lines_visible = 2
 	story.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -169,8 +220,8 @@ func _text_box() -> Control:
 
 func _reward_bar() -> Control:
 	var panel := Panel.new()
-	panel.custom_minimum_size = Vector2(0, 64)
-	panel.add_theme_stylebox_override("panel", _frame(Color("14110f"), Palette.RUST, 3))
+	panel.custom_minimum_size = Vector2(0, 88)
+	panel.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(10))
 	var row := HBoxContainer.new()
 	row.set_anchors_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 10
@@ -264,10 +315,10 @@ func _spell_row() -> Control:
 		_paint_button(button, fills[item[0]], borders[item[0]])
 		var inner := HBoxContainer.new()
 		inner.set_anchors_preset(Control.PRESET_FULL_RECT)
-		inner.offset_left = 8
-		inner.offset_top = 6
-		inner.offset_right = -8
-		inner.offset_bottom = -6
+		inner.offset_left = 14
+		inner.offset_top = 10
+		inner.offset_right = -10
+		inner.offset_bottom = -8
 		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		inner.alignment = BoxContainer.ALIGNMENT_CENTER
 		button.add_child(inner)
@@ -320,7 +371,7 @@ func _board_tray() -> Control:
 	tray.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tray.size_flags_stretch_ratio = 1.4
 	tray.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tray.add_theme_stylebox_override("panel", _frame(Color("100e0c"), Palette.RUST, 4))
+	tray.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(8))
 	var inset := MarginContainer.new()
 	inset.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
@@ -343,10 +394,10 @@ func _board_tray() -> Control:
 		panel.add_theme_stylebox_override("panel", _cell_style(false, false))
 		var icon := TextureRect.new()
 		icon.set_anchors_preset(Control.PRESET_FULL_RECT)
-		icon.offset_left = 4
-		icon.offset_top = 4
-		icon.offset_right = -4
-		icon.offset_bottom = -4
+		icon.offset_left = 8
+		icon.offset_top = 8
+		icon.offset_right = -8
+		icon.offset_bottom = -8
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -361,6 +412,7 @@ func refresh() -> void:
 	var fight = Game.battle
 	if fight == null:
 		return
+	_apply_backdrop()
 	header.text = Game.header_text()
 	food_label.text = str(int(Game.stats.get("food", 0)))
 	ammo_label.text = str(int(Game.stats.get("ammo", 0)))
@@ -374,7 +426,7 @@ func refresh() -> void:
 		extra = " +%d" % int(fight.minion_hp)
 	enemy_name.text = "Враг: %d/%d%s" % [int(fight.enemy["hp"]), enemy_max, extra]
 	_set_fill(enemy_fill, float(int(fight.enemy["hp"])) / float(enemy_max))
-	var portrait := "pigeon" if str(fight.enemy.get("id", "")) == "pigeon" else "%s_%s" % [str(fight.enemy.get("id", "")), str(fight.enemy.get("subtype", "a"))]
+	var portrait := "%s_%s" % [str(fight.enemy.get("id", "")), str(fight.enemy.get("subtype", "a"))]
 	enemy_portrait.texture = _portrait(portrait)
 	intent.text = "задумано: %s" % str(fight.enemy.get("intent", ""))
 	var energy := int(fight.energy)
@@ -409,12 +461,6 @@ func _show_enemy_card(fight) -> void:
 	var enemy_id := str(fight.enemy.get("id", ""))
 	var subtype := str(fight.enemy.get("subtype", "a"))
 	card_name.text = str(fight.enemy.get("name", ""))
-	if enemy_id == "pigeon":
-		photo.material = ink_mat
-		photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		var image := str(Game.last_reveal.get("image", ""))
-		photo.texture = load(image) if image != "" and ResourceLoader.exists(image) else null
-		return
 	photo.material = null
 	photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var sprite := _portrait("%s_%s" % [enemy_id, subtype])
@@ -852,22 +898,34 @@ func _tile_texture(kind: String) -> Texture2D:
 	return null
 
 
+func _apply_backdrop() -> void:
+	var path := "res://art/bg/apartment.webp"
+	if Game.chapter == 2:
+		path = "res://art/bg/roof.webp"
+	elif Game.chapter >= 3:
+		path = "res://art/bg/road.webp"
+	if not ResourceLoader.exists(path):
+		return
+	var picture: Texture2D = load(path)
+	scene_bg.texture = picture
+	if card_scene != null:
+		card_scene.texture = picture
+
+
 func _portrait(kind: String) -> Texture2D:
-	if kind == "pigeon":
-		var bird := "res://art/scenes/pigeon.webp"
-		return load(bird) if ResourceLoader.exists(bird) else null
 	var path := "res://art/mobs/%s.png" % kind
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null
 
 
-func _paint_button(button: Button, fill: Color, border: Color) -> void:
-	button.add_theme_stylebox_override("normal", _frame(fill, border, 4))
-	button.add_theme_stylebox_override("hover", _frame(fill.lightened(0.08), Palette.MARKER, 4))
-	button.add_theme_stylebox_override("pressed", _frame(fill.darkened(0.08), Palette.MARKER, 4))
-	button.add_theme_stylebox_override("disabled", _frame(Color(fill.r, fill.g, fill.b, 0.45), Palette.MUTED, 3))
-	button.add_theme_stylebox_override("focus", _frame(fill, border, 4))
+func _paint_button(button: Button, _fill: Color, _border: Color) -> void:
+	var chalk = preload("res://scripts/chalk_style.gd")
+	button.add_theme_stylebox_override("normal", chalk.button(8))
+	button.add_theme_stylebox_override("hover", chalk.button(8))
+	button.add_theme_stylebox_override("pressed", chalk.button(8))
+	button.add_theme_stylebox_override("disabled", chalk.button(8))
+	button.add_theme_stylebox_override("focus", chalk.button(8))
 	button.add_theme_color_override("font_color", Palette.PAPER_ON_INK)
 	button.add_theme_color_override("font_hover_color", Palette.PAPER_ON_INK)
 	button.add_theme_color_override("font_disabled_color", Palette.MUTED)
@@ -889,22 +947,19 @@ func _frame(fill: Color, border: Color, width: int) -> StyleBoxFlat:
 	return style
 
 
-func _cell_style(hot: bool, cursed: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("14110f")
-	style.set_corner_radius_all(2)
-	style.set_border_width_all(4 if hot else 2)
-	style.border_color = Palette.MARKER if hot or cursed else Color("6d6254")
-	return style
+func _cell_style(hot: bool, cursed: bool) -> StyleBoxTexture:
+	return preload("res://scripts/chalk_style.gd").cell(hot, cursed)
 
 
 func _bar() -> Array:
 	var bg := Panel.new()
 	bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bg.custom_minimum_size = Vector2(0, 26)
-	var style := _frame(Color("101614"), Palette.INK, 2)
-	style.set_corner_radius_all(6)
-	style.shadow_size = 0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("1a1210")
+	style.set_border_width_all(2)
+	style.border_color = Palette.RUST
+	style.set_corner_radius_all(3)
 	bg.add_theme_stylebox_override("panel", style)
 	var fill := ColorRect.new()
 	fill.anchor_left = 0.0

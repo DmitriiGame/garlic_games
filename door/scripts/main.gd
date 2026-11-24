@@ -229,7 +229,7 @@ func _build_day() -> Control:
 	mute.autowrap_mode = TextServer.AUTOWRAP_OFF
 	mute.clip_text = false
 	mute.add_theme_font_size_override("font_size", 22)
-	mute.custom_minimum_size = Vector2(148, 56)
+	mute.custom_minimum_size = Vector2(148, 72)
 	mute.pressed.connect(_on_mute)
 	mute_buttons.append(mute)
 	top.add_child(mute)
@@ -248,11 +248,7 @@ func _build_day() -> Control:
 	var text_panel := PanelContainer.new()
 	text_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	text_panel.size_flags_stretch_ratio = 0.85
-	var text_style := _button_style(false, false)
-	text_style.border_width_left = 3
-	text_style.shadow_size = 0
-	text_style.bg_color = Color(0, 0, 0, 0.35)
-	text_panel.add_theme_stylebox_override("panel", text_style)
+	text_panel.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(14))
 	day_text = _rich(28)
 	day_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	day_text.gui_input.connect(func(ev: InputEvent) -> void:
@@ -405,15 +401,7 @@ func _art_host(min_h: float) -> Control:
 	var host := Panel.new()
 	host.custom_minimum_size = Vector2(0, min_h)
 	host.clip_contents = true
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("120f0d")
-	style.set_border_width_all(6)
-	style.border_color = Palette.RUST
-	style.set_corner_radius_all(2)
-	style.shadow_color = Color(0.11, 0.2, 0.4, 0.18)
-	style.shadow_size = 6
-	style.shadow_offset = Vector2(3, 4)
-	host.add_theme_stylebox_override("panel", style)
+	host.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(12))
 	return host
 
 
@@ -437,11 +425,10 @@ func _frame_art(host: Panel, highlight: bool) -> void:
 	var style := host.get_theme_stylebox("panel")
 	if style == null:
 		return
-	var copy := style.duplicate() as StyleBoxFlat
+	var copy := style.duplicate() as StyleBoxTexture
 	if copy == null:
 		return
-	copy.border_color = BLOOD if highlight else INK
-	copy.set_border_width_all(8 if highlight else 3)
+	copy.modulate_color = Color(1.22, 0.74, 0.68) if highlight else Color.WHITE
 	host.add_theme_stylebox_override("panel", copy)
 
 
@@ -538,22 +525,10 @@ func _button(text: String, primary: bool, height: int = 92) -> Button:
 	return button
 
 
-func _button_style(primary: bool, hot: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.set_corner_radius_all(4)
-	style.content_margin_left = 16
-	style.content_margin_right = 16
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	style.shadow_color = Color(0, 0, 0, 0.55)
-	style.shadow_size = 3
-	style.shadow_offset = Vector2(2, 3)
-	style.bg_color = Color("2a211c") if primary else Color("1a1613")
-	style.border_width_left = 8
-	style.border_width_top = 3
-	style.border_width_right = 3
-	style.border_width_bottom = 3
-	style.border_color = Palette.RUST
+func _button_style(primary: bool, hot: bool) -> StyleBoxTexture:
+	var style: StyleBoxTexture = preload("res://scripts/chalk_style.gd").button(14)
+	if primary or hot:
+		style.modulate_color = Color(1.08, 0.9, 0.86)
 	return style
 
 
@@ -570,14 +545,7 @@ func _stat_row() -> HBoxContainer:
 	for id in Game.STAT_ORDER:
 		var cell := PanelContainer.new()
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var chip := _button_style(false, false)
-		chip.border_width_left = 3
-		chip.content_margin_left = 6
-		chip.content_margin_right = 4
-		chip.content_margin_top = 4
-		chip.content_margin_bottom = 4
-		chip.shadow_size = 0
-		cell.add_theme_stylebox_override("panel", chip)
+		cell.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").button(6))
 		var line := HBoxContainer.new()
 		line.alignment = BoxContainer.ALIGNMENT_CENTER
 		line.add_theme_constant_override("separation", 4)
@@ -1050,6 +1018,13 @@ func _run_shots() -> void:
 	_on_choice("a")
 	await get_tree().create_timer(0.35).timeout
 	await _shot("07-battle")
+	Game.chapter = 2
+	Game.battle = preload("res://scripts/battle.gd").new()
+	Game.battle.start(Game, {"enemy": "pigeon", "subtype": "a"})
+	screens.battle.call("refresh")
+	_show_screen(screens.battle)
+	await get_tree().create_timer(0.35).timeout
+	await _shot("09-pigeon")
 	if Game.by_id.has("pigeon_ultimatum"):
 		Game.pending = Game.by_id["pigeon_ultimatum"]
 	_show_day()

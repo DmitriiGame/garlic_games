@@ -1,15 +1,9 @@
-extends ColorRect
-## Лист «Ночного бункера»: серо-зелёная клетка, фактура и виньетка фонарика.
-
-const Palette := preload("res://scripts/door_theme.gd")
-
+extends TextureRect
+## Тёмный бетон под страницами вместо шейдера клетки.
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	color = Color.WHITE
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://shaders/paper.gdshader")
-	mat.set_shader_parameter("paper_light", Palette.PAPER)
-	mat.set_shader_parameter("paper_shade", Palette.PAPER_SHADE)
-	mat.set_shader_parameter("ink", Palette.INK)
-	material = mat
+	texture = load("res://art/ui/concrete.png")
+	stretch_mode = TextureRect.STRETCH_TILE
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	set_anchors_preset(Control.PRESET_FULL_RECT)

@@ -59,9 +59,9 @@
 
 ## Картинки боя
 
-Спрайты врагов (`art/mobs/`) и фишек (`art/tiles/`) нарисовал владелец игры (с помощью ИИ). Это наши собственные картинки, не чужой ассет-пак. Голубь в бою пока берётся из уже существующей сцены `art/scenes/pigeon.webp`.
+Спрайты врагов (`art/mobs/`, включая голубя `pigeon_a.png`, `pigeon_b.png`, `pigeon_v.png`), фишки (`art/tiles/`), фигурка героя в бою (`art/ui/hero_fight.png`) и фоны глав (`art/bg/apartment.webp`, `roof.webp`, `road.webp`) нарисованы для этой игры. Это свои картинки, не чужой ассет-пак.
 
-Значки заклинаний `art/ui/spell_shot.png`, `spell_grenade.png`, `spell_kit.png` и значки ресурсов `art/ui/stat_food.png`, `stat_health.png`, `stat_sanity.png`, `stat_ammo.png` нарисованы для этой игры, без чужих паков. Рамки, подложки клеток и полоски здоровья собраны из палитры «Ночной бункер» в коде, отдельных текстур нет.
+Значки заклинаний `art/ui/spell_shot.png`, `spell_grenade.png`, `spell_kit.png` и значки ресурсов `art/ui/stat_food.png`, `stat_health.png`, `stat_sanity.png`, `stat_ammo.png` нарисованы для этой игры, без чужих паков. Рваные рамки `art/ui/frame_chalk.png` и `frame_cell.png` и бетон `art/ui/concrete.png` собраны кодом в этой игре, без чужих текстур. Полоска здоровья — плоский цвет из палитры.
 
 ## Шрифты
 
