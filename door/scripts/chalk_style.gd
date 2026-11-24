@@ -5,19 +5,19 @@ const FRAME := "res://art/ui/frame_chalk.png"
 const CELL := "res://art/ui/frame_cell.png"
 
 
-static func panel(pad: int = 16) -> StyleBoxTexture:
-	return _box(FRAME, 40, pad, Color.WHITE)
+static func panel(pad: int = 10) -> StyleBoxTexture:
+	return _box(FRAME, 10, pad, Color.WHITE)
 
 
-static func button(pad: int = 12) -> StyleBoxTexture:
-	return _box(CELL, 16, pad, Color.WHITE)
+static func button(pad: int = 8) -> StyleBoxTexture:
+	return _box(CELL, 10, pad, Color.WHITE)
 
 
 static func cell(hot: bool, cursed: bool) -> StyleBoxTexture:
 	var tint := Color.WHITE
 	if hot or cursed:
-		tint = Color(1.28, 0.7, 0.64)
-	return _box(CELL, 16, 2, tint)
+		tint = Color(1.12, 0.86, 0.82)
+	return _box(CELL, 10, 2, tint)
 
 
 static func _box(path: String, margin: int, pad: int, tint: Color) -> StyleBoxTexture:

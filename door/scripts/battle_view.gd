@@ -51,6 +51,7 @@ var body: Font
 
 func setup(display_font: Font, body_font: Font) -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	display = display_font
 	body = body_font
 	scene_bg = TextureRect.new()
@@ -60,16 +61,18 @@ func setup(display_font: Font, body_font: Font) -> void:
 	scene_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var blur := ShaderMaterial.new()
 	blur.shader = preload("res://shaders/scene_blur.gdshader")
-	blur.set_shader_parameter("darkness", 0.9)
-	blur.set_shader_parameter("blur_px", 2.0)
+	blur.set_shader_parameter("darkness", 0.22)
+	blur.set_shader_parameter("blur_px", 2.4)
 	scene_bg.material = blur
 	add_child(scene_bg)
 	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 14)
 	add_child(margin)
 	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override("separation", 8)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -96,20 +99,23 @@ func setup(display_font: Font, body_font: Font) -> void:
 
 func _story_card() -> Control:
 	var card := Panel.new()
-	card.custom_minimum_size = Vector2(0, 250)
+	card.custom_minimum_size = Vector2(0, 280)
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	card.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(8))
 	card.clip_contents = true
 	var inner := VBoxContainer.new()
 	inner.set_anchors_preset(Control.PRESET_FULL_RECT)
-	inner.offset_left = 18
-	inner.offset_top = 16
-	inner.offset_right = -16
-	inner.offset_bottom = -16
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.offset_left = 10
+	inner.offset_top = 8
+	inner.offset_right = -8
+	inner.offset_bottom = -8
 	inner.add_theme_constant_override("separation", 6)
 	card.add_child(inner)
 	var art := Control.new()
-	art.custom_minimum_size = Vector2(0, 210)
+	art.custom_minimum_size = Vector2(0, 248)
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	art.clip_contents = false
 	inner.add_child(art)
@@ -134,14 +140,14 @@ func _story_card() -> Control:
 	card_scene.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var card_blur := ShaderMaterial.new()
 	card_blur.shader = preload("res://shaders/scene_blur.gdshader")
-	card_blur.set_shader_parameter("darkness", 1.0)
-	card_blur.set_shader_parameter("blur_px", 0.8)
+	card_blur.set_shader_parameter("darkness", 0.34)
+	card_blur.set_shader_parameter("blur_px", 1.6)
 	card_scene.material = card_blur
 	art.add_child(card_scene)
-	photo.anchor_left = 0.38
-	photo.anchor_right = 0.98
-	photo.anchor_top = 0.04
-	photo.anchor_bottom = 0.96
+	photo.anchor_left = 0.46
+	photo.anchor_right = 1.0
+	photo.anchor_top = 0.0
+	photo.anchor_bottom = 1.0
 	photo.offset_left = 0
 	photo.offset_top = 0
 	photo.offset_right = 0
@@ -149,13 +155,13 @@ func _story_card() -> Control:
 	art.add_child(photo)
 	hero_figure = TextureRect.new()
 	hero_figure.anchor_left = 0.0
-	hero_figure.anchor_right = 0.62
-	hero_figure.anchor_top = 0.02
-	hero_figure.anchor_bottom = 0.98
-	hero_figure.offset_left = 8
-	hero_figure.offset_top = 0
+	hero_figure.anchor_right = 0.52
+	hero_figure.anchor_top = 0.0
+	hero_figure.anchor_bottom = 1.0
+	hero_figure.offset_left = 2
+	hero_figure.offset_top = 4
 	hero_figure.offset_right = 0
-	hero_figure.offset_bottom = 0
+	hero_figure.offset_bottom = -4
 	hero_figure.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	hero_figure.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	hero_figure.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -169,22 +175,43 @@ func _story_card() -> Control:
 	card_name.offset_bottom = -8
 	card_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art.add_child(card_name)
-	var stamp := _line("БОЙ", 36, display)
-	stamp.add_theme_color_override("font_color", Palette.MARKER)
-	stamp.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	stamp.offset_left = -210
-	stamp.offset_top = 6
-	stamp.offset_right = -36
-	stamp.offset_bottom = 56
-	stamp.rotation_degrees = -8
-	stamp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	art.add_child(stamp)
+	var badge := Panel.new()
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.anchor_left = 0.5
+	badge.anchor_right = 0.5
+	badge.offset_left = -62
+	badge.offset_right = 62
+	badge.offset_top = 2
+	badge.offset_bottom = 46
+	badge.pivot_offset = Vector2(62, 22)
+	badge.rotation_degrees = -6
+	var stamp_style := StyleBoxFlat.new()
+	stamp_style.bg_color = Color(0.28, 0.06, 0.05, 0.94)
+	stamp_style.border_color = Color("c04538")
+	stamp_style.set_border_width_all(3)
+	badge.add_theme_stylebox_override("panel", stamp_style)
+	var stamp := _line("БОЙ", 28, display)
+	stamp.add_theme_color_override("font_color", Palette.PAPER_ON_INK)
+	stamp.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stamp.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	stamp.set_anchors_preset(Control.PRESET_FULL_RECT)
+	badge.add_child(stamp)
+	art.add_child(badge)
 	return card
 
 
 func _top_bar() -> Control:
+	var strip := PanelContainer.new()
+	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var dark := StyleBoxFlat.new()
+	dark.bg_color = Color("0a0908")
+	dark.content_margin_left = 8
+	dark.content_margin_right = 8
+	dark.content_margin_top = 4
+	dark.content_margin_bottom = 4
+	strip.add_theme_stylebox_override("panel", dark)
 	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override("separation", 8)
 	header = _single_line("", 20)
 	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -200,13 +227,15 @@ func _top_bar() -> Control:
 	row.add_child(_icon("res://art/ui/stat_ammo.png"))
 	ammo_label = _single_line("0", 22)
 	row.add_child(ammo_label)
-	return row
+	strip.add_child(row)
+	return strip
 
 
 func _text_box() -> Control:
 	var panel := Panel.new()
 	panel.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(12))
-	panel.custom_minimum_size = Vector2(0, 96)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.custom_minimum_size = Vector2(0, 78)
 	story = _line("", 22, body)
 	story.max_lines_visible = 2
 	story.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -220,7 +249,8 @@ func _text_box() -> Control:
 
 func _reward_bar() -> Control:
 	var panel := Panel.new()
-	panel.custom_minimum_size = Vector2(0, 88)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.custom_minimum_size = Vector2(0, 64)
 	panel.add_theme_stylebox_override("panel", preload("res://scripts/chalk_style.gd").panel(10))
 	var row := HBoxContainer.new()
 	row.set_anchors_preset(Control.PRESET_FULL_RECT)
