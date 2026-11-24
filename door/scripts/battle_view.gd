@@ -167,14 +167,28 @@ func _story_card() -> Control:
 	hero_figure.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hero_figure.texture = load("res://art/ui/hero_fight.png")
 	art.add_child(hero_figure)
-	card_name = _line("", 28, display)
-	card_name.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	card_name.offset_left = 12
-	card_name.offset_top = -44
-	card_name.offset_right = 420
-	card_name.offset_bottom = -8
-	card_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	art.add_child(card_name)
+	var name_strip := Panel.new()
+	name_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_strip.anchor_left = 0.48
+	name_strip.anchor_right = 1.0
+	name_strip.anchor_top = 1.0
+	name_strip.anchor_bottom = 1.0
+	name_strip.offset_left = 0
+	name_strip.offset_top = -40
+	name_strip.offset_right = -6
+	name_strip.offset_bottom = -4
+	var name_style := StyleBoxFlat.new()
+	name_style.bg_color = Color(0.04, 0.03, 0.03, 0.82)
+	name_style.content_margin_left = 8
+	name_style.content_margin_right = 8
+	name_strip.add_theme_stylebox_override("panel", name_style)
+	card_name = _line("", 22, display)
+	card_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	card_name.set_anchors_preset(Control.PRESET_FULL_RECT)
+	card_name.offset_left = 8
+	card_name.offset_right = -8
+	name_strip.add_child(card_name)
+	art.add_child(name_strip)
 	var badge := Panel.new()
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.anchor_left = 0.5
